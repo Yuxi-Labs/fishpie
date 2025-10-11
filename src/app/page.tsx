@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { Icon } from "@/pie/icons";
 
 export default function Home() {
   return (
@@ -95,7 +96,7 @@ export default function Home() {
             width={16}
             height={16}
           />
-          Go to nextjs.org →
+          Go to nextjs.org <Icon name="chevron-right" />
         </a>
       </footer>
     </div>

@@ -1,0 +1,30 @@
+/* Token color variables for Fish editor */
+:root {
+	--token-keyword: #7c3aed;   /* purple */
+	--token-type: #2563eb;      /* blue */
+	--token-string: #16a34a;    /* green */
+	--token-comment: #9ca3af;   /* gray */
+	--token-tag: #dc2626;       /* red */
+	--token-atrule: #0891b2;    /* cyan */
+	--token-heading: #eab308;   /* yellow */
+	--token-inline: #d946ef;    /* fuchsia */
+	--token-scene: #0ea5e9;     /* sky */
+	--token-character: #22c55e; /* emerald */
+	--token-dialogue: #f97316;  /* orange */
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--token-keyword: #a78bfa;
+		--token-type: #60a5fa;
+		--token-string: #4ade80;
+		--token-comment: #9ca3af;
+		--token-tag: #f87171;
+		--token-atrule: #22d3ee;
+		--token-heading: #fde047;
+		--token-inline: #f0abfc;
+		--token-scene: #38bdf8;
+		--token-character: #86efac;
+		--token-dialogue: #fdba74;
+	}
+}

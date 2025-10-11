@@ -1,0 +1,177 @@
+"use client";
+import React, { type PropsWithChildren } from "react";
+import Image from "next/image";
+import logo from "../../../assets/images/fishpie-logo.png";
+import { Sidebar } from "@/pie/ui/Sidebar";
+import Outline from "@/pie/ui/Outline";
+import { Toolbar } from "@/pie/ui/Toolbar";
+import { StatusBar } from "@/pie/ui/StatusBar";
+import { ActivityBar } from "@/pie/ui/ActivityBar";
+import { EditorTabs } from "@/pie/ui/EditorTabs";
+import { Breadcrumbs } from "@/pie/ui/Breadcrumbs";
+import { BottomPanel } from "@/pie/ui/BottomPanel";
+import RightPanel from "@/pie/ui/RightPanel";
+import { Icon } from "@/pie/icons";
+import { PieUIProvider, usePieUI } from "@/pie/state/ui";
+import CommandPalette from "@/pie/ui/CommandPalette";
+import Welcome from "@/pie/ui/Welcome";
+import AboutDialog from "@/pie/ui/AboutDialog";
+
+export type PieLayoutProps = PropsWithChildren<{
+  projectId?: string;
+}>;
+
+function Chrome({ children, projectId }: PieLayoutProps) {
+  const ui = usePieUI();
+  const activityLeft = ui.activityBarSide === 'left';
+  const inWelcome = !ui.hasWorkspace;
+  const hasSecondary = ui.showSecondarySidebar;
+  const hasRightPanel = ui.showPanel && ui.panelPosition === 'right';
+
+  // Build ordered slots left->right according to spec
+  const slots: string[] = [];
+  if (activityLeft) slots.push('activity');
+  if (ui.showSidebar) slots.push('primary');
+  slots.push('editor');
+  if (hasSecondary) slots.push('secondary');
+  if (hasRightPanel) slots.push('panelRight');
+  if (!activityLeft) slots.push('activity');
+
+  const colWidths = slots.map((s) => {
+    switch (s) {
+      case 'activity': return 'auto';
+      case 'primary': return '240px';
+      case 'secondary': return '240px';
+      case 'panelRight': return 'auto';
+      case 'editor':
+      default: return '1fr';
+    }
+  }).join(' ');
+
+  const idx = (s: string) => slots.indexOf(s) + 1; // 1-based for CSS grid
+
+  function TopLeftBrand() {
+    return (
+      <div className="h-full border-r border-black/10 dark:border-white/10 border-b bg-black/[.03] dark:bg-white/[.03] flex items-center justify-center px-2">
+        <Image src={logo} alt="Fishpie" height={20} className="w-auto max-h-full opacity-80" />
+      </div>
+    );
+  }
+
+  return (
+    <>
+    <div className="h-screen w-screen grid grid-rows-[auto_1fr_auto]" style={{ gridTemplateColumns: colWidths }}>
+      {/* Toolbar spans across content area (excluding ActivityBar on desktop) */}
+      <div className="row-start-1 col-start-1 col-span-3 sm:col-start-2 sm:col-span-2">
+        <Toolbar projectId={projectId} />
+      </div>
+
+      {/* Top-left brand/seam area (extends toolbar bottom border and activity bar right border) */}
+      <div className={`row-start-1 hidden sm:block col-start-[${idx('activity')}]`}>
+        <TopLeftBrand />
+      </div>
+
+      {/* Activity bar (desktop left) occupies content row only, stopping at status bar */}
+      <div className={`row-start-2 hidden sm:block col-start-[${idx('activity')}]`}>
+        <ActivityBar />
+      </div>
+
+      {/* Sidebar */}
+      {ui.showSidebar && (
+        <aside className={`row-start-2 hidden sm:block col-start-[${idx('primary')}] border-r border-black/10 dark:border-white/10 overflow-auto`}>
+          <div className="px-2 py-1 text-xs opacity-70 border-b border-black/10 dark:border-white/10">Primary</div>
+          {ui.viewLocations.explorer === 'primary' ? <Sidebar projectId={projectId} /> : null}
+          {ui.viewLocations.outline === 'primary' ? <Outline /> : null}
+        </aside>
+      )}
+
+      {/* Editor groups area */}
+  <section className={`row-start-2 col-start-[${idx('editor')}] grid ${!inWelcome ? 'grid-rows-[auto_auto_1fr_auto]' : 'grid-rows-[1fr]'}`}>
+        {/* Groups header with actions */}
+        {!inWelcome && (
+          <div className="flex items-center justify-between px-2 py-1 border-b border-black/10 dark:border-white/10 bg-black/[.02] dark:bg-white/[.02]">
+            <div className="text-xs opacity-70">Editor Groups: {ui.groups.length}</div>
+            <div className="flex items-center gap-2">
+              <button className="text-xs px-2 py-1 rounded hover:bg-black/5 dark:hover:bg-white/10" onClick={() => ui.splitEditorRight()} title="Split Right">Split Right</button>
+            </div>
+          </div>
+        )}
+        {/* Editor columns */}
+        {inWelcome ? (
+          <Welcome />
+        ) : (
+        <div className="grid" style={{ gridTemplateColumns: `repeat(${ui.groups.length || 1}, minmax(0, 1fr))` }}>
+          {ui.groups.map((g) => {
+            const isActive = ui.activeGroupId === g.id;
+            const activeName = g.activeFile;
+            return (
+              <div key={g.id} className="flex flex-col min-w-0 border-r last:border-r-0 border-black/10 dark:border-white/10">
+                <EditorTabs group={g} isActive={isActive} />
+                {activeName ? (
+                  <>
+                    <Breadcrumbs parts={["workspace", projectId ?? "untitled", activeName]} />
+                    <main className="overflow-hidden">{children}</main>
+                  </>
+                ) : (
+                  <div className="px-4 py-6 text-xs opacity-60">Open a file to get started.</div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        )}
+        {ui.showPanel && ui.panelPosition === 'bottom' ? <BottomPanel /> : null}
+      </section>
+
+      {hasSecondary && (
+        <aside className={`row-start-2 hidden sm:block col-start-[${idx('secondary')}] border-l border-black/10 dark:border-white/10 overflow-auto`}>
+          <div className="px-2 py-1 text-xs opacity-70 border-b border-black/10 dark:border-white/10">Secondary</div>
+          {ui.viewLocations.explorer === 'secondary' ? <Sidebar projectId={projectId} /> : null}
+          {ui.viewLocations.outline === 'secondary' ? <Outline /> : null}
+        </aside>
+      )}
+
+      {ui.showPanel && ui.panelPosition === 'right' && (
+        <div className={`row-start-2 hidden sm:block col-start-[${idx('panelRight')}]`}>
+          <RightPanel />
+        </div>
+      )}
+
+      {/* Status bar spans full width */}
+      <div className="row-start-3 col-span-full">
+        <StatusBar projectId={projectId} />
+      </div>
+
+      {/* Mobile bottom nav (ActivityBar substitute) */}
+      <div className="fixed bottom-6 inset-x-0 sm:hidden flex justify-center pointer-events-none">
+        <div className="pointer-events-auto inline-flex gap-3 rounded-2xl bg-black/5 dark:bg-white/10 backdrop-blur px-4 py-2 border border-black/10 dark:border-white/10 text-xs">
+          {(['explorer','search','source','run','ext'] as const).map((activity, i) => {
+            const iconMap = {
+              explorer: 'folder',
+              search: 'search',
+              source: 'branch',
+              run: 'play',
+              ext: 'puzzle',
+            } as const;
+            return (
+              <button key={i} className="h-9 w-9 rounded-md hover:bg-black/10 dark:hover:bg-white/20" aria-label={activity} onClick={() => ui.setActiveActivity(activity)}>
+                <Icon name={iconMap[activity]} size={18} />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+    <CommandPalette />
+    <AboutDialog />
+    </>
+  );
+}
+
+export function PieLayout(props: PieLayoutProps) {
+  return (
+    <PieUIProvider>
+      <Chrome {...props} />
+    </PieUIProvider>
+  );
+}
