@@ -1,7 +1,7 @@
 import React from 'react';
 import type { JSX } from 'react';
 
-export type IconName = 'folder' | 'file' | 'file-plus' | 'search' | 'branch' | 'play' | 'puzzle' | 'chevron-right' | 'chevron-down' | 'gear';
+export type IconName = 'folder' | 'file' | 'file-plus' | 'file-tree' | 'search' | 'branch' | 'play' | 'puzzle' | 'chevron-right' | 'chevron-down' | 'gear' | 'git' | 'terminal' | 'blocks';
 
 type IconProps = {
   name: IconName;
@@ -106,6 +106,18 @@ function FilePlusIcon({ size = 20, className }: { size?: number; className?: str
   );
 }
 
+function FileTreeIcon({ size = 20, className }: { size?: number; className?: string }) {
+  return (
+    <svg {...svgProps(size, className)} aria-hidden>
+      {/* lucide-folder-tree */}
+      <path d="M20 10a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2.5a1 1 0 0 1-.8-.4l-.9-1.2A1 1 0 0 0 15 3h-2a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z" />
+      <path d="M20 21a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1h-2.9a1 1 0 0 1-.88-.55l-.42-.85a1 1 0 0 0-.92-.6H13a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z" />
+      <path d="M3 5a2 2 0 0 0 2 2h3" />
+      <path d="M3 3v13a2 2 0 0 0 2 2h3" />
+    </svg>
+  );
+}
+
 function GearIcon({ size = 20, className }: { size?: number; className?: string }) {
   return (
     <svg {...svgProps(size, className)} aria-hidden>
@@ -115,10 +127,46 @@ function GearIcon({ size = 20, className }: { size?: number; className?: string 
   );
 }
 
+function GitIcon({ size = 20, className }: { size?: number; className?: string }) {
+  return (
+    <svg {...svgProps(size, className)} aria-hidden>
+      {/* lucide-git-graph */}
+      <circle cx="5" cy="6" r="3" />
+      <path d="M5 9v6" />
+      <circle cx="5" cy="18" r="3" />
+      <path d="M12 3v18" />
+      <circle cx="19" cy="6" r="3" />
+      <path d="M16 15.7A9 9 0 0 0 19 9" />
+    </svg>
+  );
+}
+
+function TerminalIcon({ size = 20, className }: { size?: number; className?: string }) {
+  return (
+    <svg {...svgProps(size, className)} aria-hidden>
+      {/* lucide-square-terminal */}
+      <path d="m7 11 2-2-2-2" />
+      <path d="M11 13h4" />
+      <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+    </svg>
+  );
+}
+
+function BlocksIcon({ size = 20, className }: { size?: number; className?: string }) {
+  return (
+    <svg {...svgProps(size, className)} aria-hidden>
+      {/* lucide-blocks */}
+      <path d="M10 22V7a1 1 0 0 0-1-1H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5a1 1 0 0 0-1-1H2" />
+      <rect x="14" y="2" width="8" height="8" rx="1" />
+    </svg>
+  );
+}
+
 const registry: Record<IconName, (p: { size?: number; className?: string }) => JSX.Element> = {
   folder: (p) => <FolderIcon {...p} />,
   file: (p) => <FileIcon {...p} />,
   'file-plus': (p) => <FilePlusIcon {...p} />,
+  'file-tree': (p) => <FileTreeIcon {...p} />,
   search: (p) => <SearchIcon {...p} />,
   branch: (p) => <BranchIcon {...p} />,
   play: (p) => <PlayIcon {...p} />,
@@ -126,6 +174,9 @@ const registry: Record<IconName, (p: { size?: number; className?: string }) => J
   'chevron-right': (p) => <ChevronRightIcon {...p} />,
   'chevron-down': (p) => <ChevronDownIcon {...p} />,
   'gear': (p) => <GearIcon {...p} />,
+  'git': (p) => <GitIcon {...p} />,
+  'terminal': (p) => <TerminalIcon {...p} />,
+  'blocks': (p) => <BlocksIcon {...p} />,
 };
 
 export function Icon({ name, size = 20, className, title }: IconProps) {
@@ -137,4 +188,4 @@ export function Icon({ name, size = 20, className, title }: IconProps) {
   );
 }
 
-export { FolderIcon, FileIcon, FilePlusIcon, SearchIcon, BranchIcon, PlayIcon, PuzzleIcon, ChevronRightIcon, ChevronDownIcon, GearIcon };
+export { FolderIcon, FileIcon, FilePlusIcon, FileTreeIcon, SearchIcon, BranchIcon, PlayIcon, PuzzleIcon, ChevronRightIcon, ChevronDownIcon, GearIcon, GitIcon, TerminalIcon, BlocksIcon };

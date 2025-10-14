@@ -57,12 +57,30 @@ export function FishEditor({ projectId, filename, language: langProp, initialTex
 
     const dpr = window.devicePixelRatio || 1;
     const resize = () => {
-      const rect = canvas.parentElement?.getBoundingClientRect();
-      if (!rect) return;
-      canvas.width = Math.floor(rect.width * dpr);
-      canvas.height = Math.floor(rect.height * dpr);
-      canvas.style.width = `${rect.width}px`;
-      canvas.style.height = `${rect.height}px`;
+      const container = containerRef.current;
+      if (!container) return;
+      const viewportW = container.clientWidth || 0;
+      const viewportH = container.clientHeight || 0;
+
+      // Compute content dimensions from text metrics
+      const lineHeight = 20;
+      const pad = 12;
+      const titleH = pad + 20;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.font = "14px var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace)";
+      const lines = textRef.current.split(/\n/);
+      let maxTextW = 0;
+      for (const l of lines) {
+        const w = ctx.measureText(l).width;
+        if (w > maxTextW) maxTextW = w;
+      }
+      const contentW = Math.max(viewportW, Math.ceil(pad + maxTextW + pad));
+      const contentH = Math.max(viewportH, Math.ceil(titleH + lines.length * lineHeight + pad));
+
+      canvas.width = Math.floor(contentW * dpr);
+      canvas.height = Math.floor(contentH * dpr);
+      canvas.style.width = `${contentW}px`;
+      canvas.style.height = `${contentH}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       paint();
     };
@@ -157,8 +175,8 @@ export function FishEditor({ projectId, filename, language: langProp, initialTex
     };
     paintRef.current = paint;
 
-    const ro = new ResizeObserver(resize);
-    if (canvas.parentElement) ro.observe(canvas.parentElement);
+  const ro = new ResizeObserver(resize);
+  if (containerRef.current) ro.observe(containerRef.current);
     resize();
 
     return () => {
@@ -514,7 +532,7 @@ export function FishEditor({ projectId, filename, language: langProp, initialTex
   return (
     <div
       ref={containerRef}
-      className="h-full w-full outline-none focus:outline-none"
+      className="h-full w-full overflow-hidden hover:overflow-auto focus-within:overflow-auto outline-none focus:outline-none"
       // Enable input without hidden textarea; plaintext-only to avoid DOM sync
       contentEditable
       suppressContentEditableWarning

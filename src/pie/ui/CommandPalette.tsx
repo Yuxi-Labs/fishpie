@@ -14,7 +14,6 @@ export function CommandPalette() {
     { id: 'view.togglePanel', title: (ui.showPanel ? 'Hide' : 'Show') + ' Panel', run: () => ui.togglePanel() },
     { id: 'view.panelRight', title: 'Panel: Move to Right', run: () => ui.setPanelPosition('right') },
     { id: 'view.panelBottom', title: 'Panel: Move to Bottom', run: () => ui.setPanelPosition('bottom') },
-    { id: 'workbench.action.splitEditorRight', title: 'Split Editor Right', run: () => ui.splitEditorRight() },
     { id: 'file.newUntitled', title: 'File: New Untitled', run: () => ui.openFile(`Untitled-${(ui.openFiles.length||0)+1}`) },
   ]), [ui.showSidebar, ui.showPanel, ui.openFiles.length]);
 

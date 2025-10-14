@@ -62,6 +62,7 @@ export function MenuBar() {
   const fileMenu: TopMenu = {
     label: "File",
     items: [
+      { type: "item", label: "New Tab", onSelect: () => ui.newTab() },
       { type: "item", label: "New File", onSelect: () => ui.openFile("Untitled-1") },
       { type: "item", label: "Save", onSelect: () => ui.activeFile && ui.markDirty(ui.activeFile, false), disabled: !ui.activeFile },
       { type: "item", label: "Save All", onSelect: () => ui.openFiles.forEach(f => ui.markDirty(f.name, false)), disabled: ui.openFiles.length === 0 },
@@ -87,9 +88,7 @@ export function MenuBar() {
       { type: "separator" },
       { type: "item", label: `Panel on ${ui.panelPosition === 'bottom' ? 'Right' : 'Bottom'}`, onSelect: () => ui.setPanelPosition(ui.panelPosition === 'bottom' ? 'right' : 'bottom') },
       { type: "item", label: (ui.showPanel ? "Hide" : "Show") + " Panel", onSelect: () => ui.togglePanel() },
-      { type: "separator" },
-      { type: "item", label: "Split Editor Right", onSelect: () => ui.splitEditorRight() },
-      { type: "separator" },
+  { type: "separator" },
       { type: "item", label: `Move Outline to ${ui.viewLocations.outline === 'primary' ? 'Secondary' : 'Primary'} Sidebar`, onSelect: () => ui.setViewLocation('outline', ui.viewLocations.outline === 'primary' ? 'secondary' : 'primary') },
     ],
   };
@@ -102,7 +101,9 @@ export function MenuBar() {
   const menus: TopMenu[] = [fileMenu, editMenu, viewMenu, goMenu, runMenu, termMenu, helpMenu];
 
   return (
-    <div ref={ref} className="flex items-center gap-2 pr-2 pl-2 text-xs select-none">
+    <div ref={ref} className="flex items-center gap-2 pr-2 pl-0 text-xs select-none">
+      {/* Global shortcut: Ctrl+T/Cmd+T => New Tab */}
+      <ShortcutNewTab onNewTab={() => ui.newTab()} />
       {menus.map((m, idx) => (
         <div key={m.label} className="relative">
           <button
@@ -125,3 +126,18 @@ export function MenuBar() {
 }
 
 export default MenuBar;
+
+function ShortcutNewTab({ onNewTab }: { onNewTab: () => void }) {
+  React.useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.includes('Mac');
+      if ((isMac ? e.metaKey : e.ctrlKey) && (e.key === 't' || e.key === 'T')) {
+        e.preventDefault();
+        onNewTab();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onNewTab]);
+  return null;
+}

@@ -33,6 +33,7 @@ type UIState = {
   openFiles: OpenFile[]; // of active group
   activeFile?: string;   // of active group
   splitEditorRight: () => void;
+  newTab: (groupId?: string) => void;
   openFile: (name: string, groupId?: string) => void;
   closeFile: (name: string, groupId?: string) => void;
   activateFile: (name: string, groupId?: string) => void;
@@ -96,6 +97,20 @@ export function PieUIProvider({ children }: { children: React.ReactNode }) {
     try { localStorage.setItem('ui.activeGroupId', id); } catch {}
   };
 
+  const newTab = (groupId?: string) => {
+    const idx = getGroupIndex(groupId);
+    if (idx === -1) return;
+    const g = groups[idx];
+    // Find next Untitled-N
+    let n = 1;
+    const names = new Set(g.openFiles.map(f => f.name));
+    while (names.has(`Untitled-${n}`)) n++;
+    const name = `Untitled-${n}`;
+    const ng: EditorGroup = { ...g, openFiles: [...g.openFiles, { name }], activeFile: name };
+    const next = groups.slice(); next[idx] = ng; persistGroups(next);
+    if (!groupId) { setActiveGroupId(g.id); try { localStorage.setItem('ui.activeGroupId', g.id); } catch {} }
+  };
+
   const openFile = (name: string, groupId?: string) => {
     const idx = getGroupIndex(groupId);
     if (idx === -1) return;
@@ -111,6 +126,21 @@ export function PieUIProvider({ children }: { children: React.ReactNode }) {
     if (idx === -1) return;
     const g = groups[idx];
     const remaining = g.openFiles.filter(f => f.name !== name);
+    if (remaining.length === 0) {
+      // Remove this editor if there are multiple; otherwise keep empty editor
+      if (groups.length > 1) {
+        const next = groups.filter((_, i) => i !== idx);
+        persistGroups(next);
+        // pick a new active editor
+        const nextActive = next[Math.min(idx, next.length - 1)]?.id;
+        if (nextActive) { setActiveGroupId(nextActive); try { localStorage.setItem('ui.activeGroupId', nextActive); } catch {} }
+        return;
+      } else {
+        const ng: EditorGroup = { ...g, openFiles: [], activeFile: undefined };
+        const next = groups.slice(); next[idx] = ng; persistGroups(next);
+        return;
+      }
+    }
     const ng: EditorGroup = { ...g, openFiles: remaining, activeFile: g.activeFile === name ? remaining[0]?.name : g.activeFile };
     const next = groups.slice(); next[idx] = ng; persistGroups(next);
   };
@@ -168,6 +198,7 @@ export function PieUIProvider({ children }: { children: React.ReactNode }) {
   openFiles: activeGroup?.openFiles || [],
   activeFile: activeGroup?.activeFile,
   splitEditorRight,
+    newTab,
     openFile,
     closeFile,
     activateFile,

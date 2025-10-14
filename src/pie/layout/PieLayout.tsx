@@ -27,6 +27,8 @@ function Chrome({ children, projectId }: PieLayoutProps) {
   const inWelcome = !ui.hasWorkspace;
   const hasSecondary = ui.showSecondarySidebar;
   const hasRightPanel = ui.showPanel && ui.panelPosition === 'right';
+  const activeGroup = ui.groups.find(g => g.id === ui.activeGroupId) ?? ui.groups[0];
+  const hasTabs = !inWelcome && !!(activeGroup && activeGroup.openFiles.length > 0);
 
   // Build ordered slots left->right according to spec
   const slots: string[] = [];
@@ -52,7 +54,7 @@ function Chrome({ children, projectId }: PieLayoutProps) {
 
   function TopLeftBrand() {
     return (
-      <div className="h-full border-r border-black/10 dark:border-white/10 border-b bg-black/[.03] dark:bg-white/[.03] flex items-center justify-center px-2">
+      <div className="h-full border-b border-black/10 dark:border-white/10 bg-black/[.03] dark:bg-white/[.03] flex items-center justify-center px-2">
         <Image src={logo} alt="Fishpie" height={20} className="w-auto max-h-full opacity-80" />
       </div>
     );
@@ -60,7 +62,7 @@ function Chrome({ children, projectId }: PieLayoutProps) {
 
   return (
     <>
-    <div className="h-screen w-screen grid grid-rows-[auto_1fr_auto]" style={{ gridTemplateColumns: colWidths }}>
+  <div className="fixed inset-0 grid grid-rows-[auto_1fr_auto]" style={{ gridTemplateColumns: colWidths }}>
       {/* Toolbar spans across content area (excluding ActivityBar on desktop) */}
       <div className="row-start-1 col-start-1 col-span-3 sm:col-start-2 sm:col-span-2">
         <Toolbar projectId={projectId} />
@@ -71,49 +73,56 @@ function Chrome({ children, projectId }: PieLayoutProps) {
         <TopLeftBrand />
       </div>
 
-      {/* Activity bar (desktop left) occupies content row only, stopping at status bar */}
-      <div className={`row-start-2 hidden sm:block col-start-[${idx('activity')}]`}>
+      {/* Activity bar (desktop left) without interior header line */}
+      <div className={`row-start-2 hidden sm:block col-start-[${idx('activity')}] min-h-0`}>
         <ActivityBar />
       </div>
 
       {/* Sidebar */}
       {ui.showSidebar && (
-        <aside className={`row-start-2 hidden sm:block col-start-[${idx('primary')}] border-r border-black/10 dark:border-white/10 overflow-auto`}>
-          <div className="px-2 py-1 text-xs opacity-70 border-b border-black/10 dark:border-white/10">Primary</div>
-          {ui.viewLocations.explorer === 'primary' ? <Sidebar projectId={projectId} /> : null}
-          {ui.viewLocations.outline === 'primary' ? <Outline /> : null}
+        <aside className={`row-start-2 hidden sm:block col-start-[${idx('primary')}] border-r border-black/10 dark:border-white/10 min-h-0`}>
+          <div className="h-12 flex items-center px-2 text-xs border-b border-black/10 dark:border-white/10"><span className="text-black/[.35] dark:text-white">EXPLORER</span></div>
+          <div className="flex flex-col h-full">
+            <div className="flex-1 overflow-auto">
+              {ui.viewLocations.explorer === 'primary' ? <Sidebar projectId={projectId} /> : null}
+              {ui.viewLocations.outline === 'primary' ? <Outline /> : null}
+            </div>
+          </div>
         </aside>
       )}
 
       {/* Editor groups area */}
-  <section className={`row-start-2 col-start-[${idx('editor')}] grid ${!inWelcome ? 'grid-rows-[auto_auto_1fr_auto]' : 'grid-rows-[1fr]'}`}>
-        {/* Groups header with actions */}
-        {!inWelcome && (
-          <div className="flex items-center justify-between px-2 py-1 border-b border-black/10 dark:border-white/10 bg-black/[.02] dark:bg-white/[.02]">
-            <div className="text-xs opacity-70">Editor Groups: {ui.groups.length}</div>
-            <div className="flex items-center gap-2">
-              <button className="text-xs px-2 py-1 rounded hover:bg-black/5 dark:hover:bg-white/10" onClick={() => ui.splitEditorRight()} title="Split Right">Split Right</button>
-            </div>
-          </div>
-        )}
+  <section className={`row-start-2 col-start-[${idx('editor')}] grid min-h-0 grid-rows-[1fr_auto]`}>
         {/* Editor columns */}
         {inWelcome ? (
           <Welcome />
         ) : (
-        <div className="grid" style={{ gridTemplateColumns: `repeat(${ui.groups.length || 1}, minmax(0, 1fr))` }}>
+        <div className="grid min-h-0" style={{ gridTemplateColumns: `repeat(${ui.groups.length || 1}, minmax(0, 1fr))` }}>
           {ui.groups.map((g) => {
             const isActive = ui.activeGroupId === g.id;
             const activeName = g.activeFile;
             return (
-              <div key={g.id} className="flex flex-col min-w-0 border-r last:border-r-0 border-black/10 dark:border-white/10">
-                <EditorTabs group={g} isActive={isActive} />
+              <div key={g.id} className={`min-w-0 border-r last:border-r-0 border-black/10 dark:border-white/10 grid min-h-0 ${g.openFiles.length>0 ? 'grid-rows-[auto_auto_1fr]' : 'grid-rows-[1fr]'}`}>
+                {/* Tabs and breadcrumbs only when this editor has tabs */}
+                {g.openFiles.length>0 && (
+                  <div className="min-w-0">
+                    <EditorTabs group={g} isActive={isActive} />
+                  </div>
+                )}
+                {g.openFiles.length>0 && activeName && (
+                  <div className="min-w-0 border-b border-black/10 dark:border-white/10">
+                    {(() => {
+                      const parts = (activeName || '').split('/').filter(Boolean);
+                      const trail = ["workspace", projectId ?? "untitled", ...parts];
+                      return <Breadcrumbs parts={trail} />;
+                    })()}
+                  </div>
+                )}
+                {/* Editor content */}
                 {activeName ? (
-                  <>
-                    <Breadcrumbs parts={["workspace", projectId ?? "untitled", activeName]} />
-                    <main className="overflow-hidden">{children}</main>
-                  </>
+                  <main className="min-h-0 overflow-hidden">{children}</main>
                 ) : (
-                  <div className="px-4 py-6 text-xs opacity-60">Open a file to get started.</div>
+                  <div className="px-4 py-6 text-xs opacity-60">Open a tab to get started. Double-click here or use File → New Tab.</div>
                 )}
               </div>
             );
@@ -124,15 +133,19 @@ function Chrome({ children, projectId }: PieLayoutProps) {
       </section>
 
       {hasSecondary && (
-        <aside className={`row-start-2 hidden sm:block col-start-[${idx('secondary')}] border-l border-black/10 dark:border-white/10 overflow-auto`}>
-          <div className="px-2 py-1 text-xs opacity-70 border-b border-black/10 dark:border-white/10">Secondary</div>
-          {ui.viewLocations.explorer === 'secondary' ? <Sidebar projectId={projectId} /> : null}
-          {ui.viewLocations.outline === 'secondary' ? <Outline /> : null}
+        <aside className={`row-start-2 hidden sm:block col-start-[${idx('secondary')}] border-l border-black/10 dark:border-white/10 min-h-0`}>
+          <div className="h-12 flex items-center px-2 text-xs opacity-70 border-b border-black/10 dark:border-white/10">Secondary</div>
+          <div className="flex flex-col h-full">
+            <div className="flex-1 overflow-auto">
+              {ui.viewLocations.explorer === 'secondary' ? <Sidebar projectId={projectId} /> : null}
+              {ui.viewLocations.outline === 'secondary' ? <Outline /> : null}
+            </div>
+          </div>
         </aside>
       )}
 
       {ui.showPanel && ui.panelPosition === 'right' && (
-        <div className={`row-start-2 hidden sm:block col-start-[${idx('panelRight')}]`}>
+        <div className={`row-start-2 hidden sm:block col-start-[${idx('panelRight')}] min-h-0`}>
           <RightPanel />
         </div>
       )}
