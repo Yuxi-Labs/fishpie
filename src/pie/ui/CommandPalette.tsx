@@ -9,13 +9,16 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
 
-  const cmds: Command[] = useMemo(() => ([
-    { id: 'view.toggleSidebar', title: (ui.showSidebar ? 'Hide' : 'Show') + ' Side Bar', run: () => ui.toggleSidebar() },
-    { id: 'view.togglePanel', title: (ui.showPanel ? 'Hide' : 'Show') + ' Panel', run: () => ui.togglePanel() },
-    { id: 'view.panelRight', title: 'Panel: Move to Right', run: () => ui.setPanelPosition('right') },
-    { id: 'view.panelBottom', title: 'Panel: Move to Bottom', run: () => ui.setPanelPosition('bottom') },
-    { id: 'file.newUntitled', title: 'File: New Untitled', run: () => ui.openFile(`Untitled-${(ui.openFiles.length||0)+1}`) },
-  ]), [ui.showSidebar, ui.showPanel, ui.openFiles.length]);
+  const cmds: Command[] = useMemo(() => {
+    const nextUntitledNum = (ui.openFiles.length || 0) + 1;
+    return [
+      { id: 'view.toggleSidebar', title: (ui.showSidebar ? 'Hide' : 'Show') + ' Side Bar', run: () => ui.toggleSidebar() },
+      { id: 'view.togglePanel', title: (ui.showPanel ? 'Hide' : 'Show') + ' Panel', run: () => ui.togglePanel() },
+      { id: 'view.panelRight', title: 'Panel: Move to Right', run: () => ui.setPanelPosition('right') },
+      { id: 'view.panelBottom', title: 'Panel: Move to Bottom', run: () => ui.setPanelPosition('bottom') },
+      { id: 'file.newUntitled', title: 'File: New Untitled', run: () => ui.openFile(`Untitled-${nextUntitledNum}`) },
+    ];
+  }, [ui]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

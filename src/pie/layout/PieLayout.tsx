@@ -27,8 +27,8 @@ function Chrome({ children, projectId }: PieLayoutProps) {
   const inWelcome = !ui.hasWorkspace;
   const hasSecondary = ui.showSecondarySidebar;
   const hasRightPanel = ui.showPanel && ui.panelPosition === 'right';
-  const activeGroup = ui.groups.find(g => g.id === ui.activeGroupId) ?? ui.groups[0];
-  const hasTabs = !inWelcome && !!(activeGroup && activeGroup.openFiles.length > 0);
+  // const activeGroup = ui.groups.find(g => g.id === ui.activeGroupId) ?? ui.groups[0];
+  // const hasTabs = !inWelcome && !!(activeGroup && activeGroup.openFiles.length > 0);
 
   // Build ordered slots left->right according to spec
   const slots: string[] = [];
@@ -62,7 +62,7 @@ function Chrome({ children, projectId }: PieLayoutProps) {
 
   return (
     <>
-  <div className="fixed inset-0 grid grid-rows-[auto_1fr_auto]" style={{ gridTemplateColumns: colWidths }}>
+  <div className="fixed inset-0 grid grid-rows-[auto_1fr_auto] overflow-x-hidden" style={{ gridTemplateColumns: colWidths }}>
       {/* Toolbar spans across content area (excluding ActivityBar on desktop) */}
       <div className="row-start-1 col-start-1 col-span-3 sm:col-start-2 sm:col-span-2">
         <Toolbar projectId={projectId} />
@@ -81,7 +81,7 @@ function Chrome({ children, projectId }: PieLayoutProps) {
       {/* Sidebar */}
       {ui.showSidebar && (
         <aside className={`row-start-2 hidden sm:block col-start-[${idx('primary')}] border-r border-black/10 dark:border-white/10 min-h-0`}>
-          <div className="h-12 flex items-center px-2 text-xs border-b border-black/10 dark:border-white/10"><span className="text-black/[.35] dark:text-white">EXPLORER</span></div>
+          <div className="h-12 flex items-center px-2 text-xs border-b border-black/10 dark:border-white/10"><span className="text-black/[.35] dark:text-white/80">Explorer</span></div>
           <div className="flex flex-col h-full">
             <div className="flex-1 overflow-auto">
               {ui.viewLocations.explorer === 'primary' ? <Sidebar projectId={projectId} /> : null}
@@ -92,12 +92,12 @@ function Chrome({ children, projectId }: PieLayoutProps) {
       )}
 
       {/* Editor groups area */}
-  <section className={`row-start-2 col-start-[${idx('editor')}] grid min-h-0 grid-rows-[1fr_auto]`}>
+  <section className={`row-start-2 col-start-[${idx('editor')}] grid min-h-0 min-w-0 overflow-x-hidden grid-rows-[1fr_auto]`}>
         {/* Editor columns */}
         {inWelcome ? (
           <Welcome />
         ) : (
-        <div className="grid min-h-0" style={{ gridTemplateColumns: `repeat(${ui.groups.length || 1}, minmax(0, 1fr))` }}>
+  <div className="grid min-h-0 min-w-0" style={{ gridTemplateColumns: `repeat(${ui.groups.length || 1}, minmax(0, 1fr))` }}>
           {ui.groups.map((g) => {
             const isActive = ui.activeGroupId === g.id;
             const activeName = g.activeFile;
@@ -113,14 +113,18 @@ function Chrome({ children, projectId }: PieLayoutProps) {
                   <div className="min-w-0 border-b border-black/10 dark:border-white/10">
                     {(() => {
                       const parts = (activeName || '').split('/').filter(Boolean);
-                      const trail = ["workspace", projectId ?? "untitled", ...parts];
+                      const trail = [ui.rootName || "Folder", ...parts];
                       return <Breadcrumbs parts={trail} />;
                     })()}
                   </div>
                 )}
                 {/* Editor content */}
                 {activeName ? (
-                  <main className="min-h-0 overflow-hidden">{children}</main>
+                  <main className="min-h-0 overflow-hidden" onMouseDown={() => ui.setActiveGroup(g.id)}>
+                    {React.isValidElement(children)
+                      ? React.cloneElement(children as React.ReactElement<{ active?: boolean; filename?: string }>, { active: isActive, filename: activeName })
+                      : children}
+                  </main>
                 ) : (
                   <div className="px-4 py-6 text-xs opacity-60">Open a tab to get started. Double-click here or use File → New Tab.</div>
                 )}

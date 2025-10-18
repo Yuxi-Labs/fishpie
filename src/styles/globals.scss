@@ -19,3 +19,24 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Fine-tuning for FishEditor sizing using standard CSS (mobile-first) */
+.fish-editor {
+  --fish-text-font-size: 16px;
+  --fish-line-number-font-size: 16px; /* match text size on mobile */
+  --fish-line-height: 24px;
+  --fish-caret-width: 2px;
+  --fish-editor-padding: 12px;
+  --fish-gutter-extra: 12px; /* extra gutter beyond digit width */
+}
+
+@media (min-width: 768px) {
+  .fish-editor {
+    --fish-text-font-size: 14px;         /* VS Code-like desktop text */
+    --fish-line-number-font-size: 14px;  /* match text size on desktop */
+    --fish-line-height: 22px;            /* ~1.57 line-height */
+    --fish-editor-padding: 16px;
+    --fish-gutter-extra: 18px;           /* widen gutter appropriately */
+  }
+}
+

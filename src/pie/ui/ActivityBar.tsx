@@ -13,7 +13,7 @@ export function ActivityBar() {
   ];
   return (
   <nav className="hidden sm:flex h-full flex-col items-center gap-3 pt-1 pb-3 w-12 border-r border-black/10 dark:border-white/10 bg-black/[.02] dark:bg-white/[.02] text-xs" aria-label="Activity Bar">
-      {items.map((it, idx) => {
+  {items.map((it) => {
         const active = ui.activeActivity === it.activity;
         return (
           <button

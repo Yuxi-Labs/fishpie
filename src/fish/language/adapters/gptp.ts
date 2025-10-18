@@ -47,7 +47,7 @@ export const gptpProvider: LanguageProvider = {
   tokenize(text: string) {
     return tokenizeGptp(text);
   },
-  async complete(text: string, position: Position) {
+  async complete(_text: string, _position: Position) {
     return gptpCompletions;
   },
   async hover(text: string, position: Position): Promise<Hover | null> {

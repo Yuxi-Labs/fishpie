@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     }
 
     return Response.json({ error: "Unsupported action" }, { status: 400 });
-  } catch (err) {
+  } catch {
     return Response.json({ error: "Bad request" }, { status: 400 });
   }
 }

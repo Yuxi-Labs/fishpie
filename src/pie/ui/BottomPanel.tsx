@@ -26,14 +26,14 @@ export function BottomPanel() {
   };
 
   return (
-    <div className="w-full border-t border-black/10 dark:border-white/10 bg-black/[.02] dark:bg-white/[.02]" style={{ height }}>
+    <div className="w-full border-t border-black/10 dark:border-white/10 bg-black/[.02] dark:bg-white/[.02] overflow-x-hidden" style={{ height }}>
       <div className="flex items-center gap-2 px-2 text-xs border-b border-black/10 dark:border-white/10">
         {['Problems','Output','Terminal','Log'].map((t) => (
           <button key={t} className="px-2 py-1 hover:bg-black/5 dark:hover:bg-white/10">{t}</button>
         ))}
         <div className="ml-auto px-2 py-1 opacity-70">Alt+` to toggle</div>
       </div>
-      <div className="h-[calc(100%-2rem)] overflow-auto p-2 text-xs">
+  <div className="h-[calc(100%-2rem)] overflow-y-auto overflow-x-hidden p-2 text-xs">
         <pre className="opacity-70">No output yet.</pre>
       </div>
       <div className="h-2 cursor-ns-resize hover:bg-black/10 dark:hover:bg-white/10" onMouseDown={onMouseDown} />

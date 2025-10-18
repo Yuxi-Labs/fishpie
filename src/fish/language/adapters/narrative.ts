@@ -104,7 +104,7 @@ export const narrativeProvider: LanguageProvider = {
       return simpleTokenize(text);
     }
   },
-  async complete(text: string, position: Position): Promise<CompletionItem[]> {
+  async complete(_text: string, _position: Position): Promise<CompletionItem[]> {
     // Minimal: surface base completions; later we can context-filter via AST
     return baseCompletions;
   },

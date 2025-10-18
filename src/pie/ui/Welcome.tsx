@@ -17,9 +17,9 @@ export default function Welcome() {
   <div className="text-2xl mb-2">Welcome to Fishpie</div>
         <div className="text-sm opacity-70 mb-6">Start by creating a new file, opening a file, or opening a folder.</div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-8">
-          <Action icon="file" label="New File" onClick={() => { ui.openWorkspace(); ui.openFile("Untitled-1"); }} />
+          <Action icon="file" label="New File" onClick={() => { ui.openFile("Untitled-1"); }} />
           <Action icon="file-plus" label="Open File" onClick={() => ui.openWorkspace()} />
-          <Action icon="folder" label="Open Folder" onClick={() => ui.openWorkspace()} />
+          <Action icon="folder" label="Open Folder" onClick={() => ui.openFolder()} />
           <Action icon="gear" label="Preferences" onClick={() => ui.setActiveActivity('explorer')} />
         </div>
       </div>

@@ -7,7 +7,9 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint --ext .ts,.tsx,.mjs,.cjs src eslint.config.mjs postcss.config.mjs next.config.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check": "npm run -s lint && npm run -s typecheck && npm run -s test",
     "test": "vitest run",
     "test:watch": "vitest"
   },

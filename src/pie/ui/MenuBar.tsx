@@ -62,6 +62,9 @@ export function MenuBar() {
   const fileMenu: TopMenu = {
     label: "File",
     items: [
+      { type: "item", label: "Open Folder…", onSelect: () => ui.openFolder() },
+      { type: "item", label: "Close Folder", onSelect: () => ui.closeFolder(), disabled: !ui.hasFolder },
+      { type: "separator" },
       { type: "item", label: "New Tab", onSelect: () => ui.newTab() },
       { type: "item", label: "New File", onSelect: () => ui.openFile("Untitled-1") },
       { type: "item", label: "Save", onSelect: () => ui.activeFile && ui.markDirty(ui.activeFile, false), disabled: !ui.activeFile },
@@ -104,7 +107,7 @@ export function MenuBar() {
     <div ref={ref} className="flex items-center gap-2 pr-2 pl-0 text-xs select-none">
       {/* Global shortcut: Ctrl+T/Cmd+T => New Tab */}
       <ShortcutNewTab onNewTab={() => ui.newTab()} />
-      {menus.map((m, idx) => (
+  {menus.map((m) => (
         <div key={m.label} className="relative">
           <button
             className={`px-2 py-1 rounded hover:bg-black/5 dark:hover:bg-white/10 ${open === m.label ? 'bg-black/5 dark:bg-white/10' : ''}`}

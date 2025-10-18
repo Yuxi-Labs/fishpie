@@ -5,7 +5,7 @@ export function Breadcrumbs({ parts }: { parts: string[] }) {
       {parts.map((p, i) => (
         <div key={i} className="flex items-center gap-2">
           <span className="truncate max-w-[12ch]">{p}</span>
-          {i < parts.length - 1 ? <span className="opacity-50">/</span> : null}
+          {i < parts.length - 1 ? <span className="opacity-50">&gt;</span> : null}
         </div>
       ))}
     </div>

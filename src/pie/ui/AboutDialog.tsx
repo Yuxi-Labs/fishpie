@@ -9,7 +9,7 @@ export default function AboutDialog() {
   const ui = usePieUI();
   const closeRef = useRef<HTMLButtonElement>(null);
   const year = useMemo(() => new Date().getFullYear(), []);
-  const appVersion = (pkg as any)?.version ?? "0.1.0";
+  const appVersion: string = (pkg as { version?: string })?.version ?? "0.1.0";
   const [drag, setDrag] = useState<{dx: number; dy: number}>({ dx: 0, dy: 0 });
   const startRef = useRef<{x: number; y: number; dx: number; dy: number} | null>(null);
 
@@ -22,7 +22,7 @@ export default function AboutDialog() {
     // move focus to Close for simple focus management
     closeRef.current?.focus();
     return () => document.removeEventListener('keydown', onKey);
-  }, [ui.showAbout]);
+  }, [ui, ui.showAbout]);
 
   const onMouseDownDrag = (e: React.MouseEvent) => {
     // Ignore drag start when interacting with controls (buttons, inputs, links, etc.)
