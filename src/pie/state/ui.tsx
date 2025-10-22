@@ -14,7 +14,7 @@ export type FSNode = {
   children?: FSNode[];
 };
 
-type UIState = {
+export type UIState = {
   activeActivity: Activity;
   setActiveActivity: (a: Activity) => void;
   hasWorkspace: boolean;
@@ -52,6 +52,9 @@ type UIState = {
   activateFile: (name: string, groupId?: string) => void;
   markDirty: (name: string, dirty: boolean) => void;
 
+  // File text cache accessor
+  getFileText: (name: string) => string | undefined;
+
   // Editor status (mock for now)
   cursor: { line: number; column: number };
   languageId: string;
@@ -64,7 +67,7 @@ type UIState = {
   closeAbout: () => void;
 };
 
-const PieUIContext = createContext<UIState | null>(null);
+export const PieUIContext = createContext<UIState | null>(null);
 
 export function PieUIProvider({ children }: { children: React.ReactNode }) {
   const [activeActivity, setActiveActivity] = useState<Activity>(() => (localStorage.getItem('ui.activeActivity') as Activity) || 'explorer');
@@ -102,6 +105,9 @@ export function PieUIProvider({ children }: { children: React.ReactNode }) {
   });
   const [activeGroupId, setActiveGroupId] = useState<string>(() => localStorage.getItem('ui.activeGroupId') || 'g1');
   const [showAbout, setShowAbout] = useState(false);
+  // In-memory FS handles and loaded texts for current workspace
+  const fileHandlesRef = React.useRef<Map<string, FileSystemFileHandle>>(new Map());
+  const [fileTexts, setFileTexts] = useState<Record<string, string>>({});
 
   const persistGroups = (next: EditorGroup[]) => {
     setGroups(next);
@@ -160,7 +166,22 @@ export function PieUIProvider({ children }: { children: React.ReactNode }) {
     const ng: EditorGroup = exists ? { ...g, activeFile: name } : { ...g, openFiles: [...g.openFiles, { name }], activeFile: name };
     const next = groups.slice(); next[idx] = ng; persistGroups(next);
     if (!groupId) { setActiveGroupId(g.id); try { localStorage.setItem('ui.activeGroupId', g.id); } catch {} }
-  }, [groups, getGroupIndex]);
+    // Load file text into cache if available and not yet loaded
+    (async () => {
+      try {
+        if (fileTexts[name] == null) {
+          const fh = fileHandlesRef.current.get(name);
+          if (fh) {
+            const f = await fh.getFile();
+            const txt = await f.text();
+            setFileTexts(prev => ({ ...prev, [name]: txt }));
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to read file', name, e);
+      }
+    })();
+  }, [groups, getGroupIndex, fileTexts]);
 
   const closeFile = useCallback((name: string, groupId?: string) => {
     const idx = getGroupIndex(groupId);
@@ -236,6 +257,7 @@ export function PieUIProvider({ children }: { children: React.ReactNode }) {
         const nextPath = basePath ? `${basePath}/${name}` : name;
         if ((handle as FileSystemFileHandle).kind === 'file') {
           node.children!.push({ name, type: 'file', path: nextPath });
+          try { fileHandlesRef.current.set(nextPath, handle as FileSystemFileHandle); } catch {}
         } else if ((handle as FileSystemDirectoryHandle).kind === 'directory') {
           const child = await readDirectoryRecursive(handle as FileSystemDirectoryHandle, nextPath);
           node.children!.push(child);
@@ -309,6 +331,7 @@ export function PieUIProvider({ children }: { children: React.ReactNode }) {
     closeFile,
     activateFile,
     markDirty,
+  getFileText: (name: string) => fileTexts[name],
     cursor: { line: 1, column: 1 },
     languageId: 'plaintext',
     eol: 'LF',
@@ -316,7 +339,7 @@ export function PieUIProvider({ children }: { children: React.ReactNode }) {
     showAbout,
     openAbout: () => setShowAbout(true),
     closeAbout: () => setShowAbout(false),
-  }), [activeActivity, showSidebar, showPanel, showSecondarySidebar, activityBarSide, panelPosition, viewLocations, groups, activeGroupId, showAbout, hasFolder, hasWorkspace, activeOpenFiles, activeFile, splitEditorRight, newTab, openFile, closeFile, activateFile, markDirty, rootName, fileTree, handleOpenFolder, handleCloseFolder]);
+  }), [activeActivity, showSidebar, showPanel, showSecondarySidebar, activityBarSide, panelPosition, viewLocations, groups, activeGroupId, showAbout, hasFolder, hasWorkspace, activeOpenFiles, activeFile, splitEditorRight, newTab, openFile, closeFile, activateFile, markDirty, rootName, fileTree, handleOpenFolder, handleCloseFolder, fileTexts]);
 
   // Attempt to restore previously authorized folder on load
   React.useEffect(() => {

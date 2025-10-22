@@ -1,4 +1,4 @@
-import type { LanguageProvider, Token } from "../types";
+import type { LanguageProvider, Token, Position, CompletionItem, Hover } from "../types";
 
 export const markdown: LanguageProvider = {
   id: "markdown",
@@ -31,4 +31,22 @@ export const markdown: LanguageProvider = {
     }
     return tokens;
   },
+  complete(_text: string, _pos: Position): CompletionItem[] {
+    return [
+      { label: "# ", kind: "heading" },
+      { label: "## ", kind: "heading" },
+      { label: "### ", kind: "heading" },
+      { label: "**bold**", kind: "format" },
+      { label: "*italic*", kind: "format" },
+      { label: "`code`", kind: "format" },
+      { label: "- ", kind: "list" },
+    ];
+  },
+  hover(text: string, position: Position): Hover | null {
+    const toks = markdown.tokenize!(text) as Token[];
+    const t = toks.find((tk: Token) => tk.range.start.line === position.line && position.column >= tk.range.start.column && position.column <= tk.range.end.column);
+    if (!t) return null;
+    const map: Record<string, string> = { heading: "Markdown heading", inline: "Inline formatting" };
+    return { contents: map[t.type] ?? t.type, range: t.range };
+  }
 };

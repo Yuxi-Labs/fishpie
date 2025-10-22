@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import logo from "../../../assets/images/fishpie-logo.png";
+import logo from "../../../assets/images/fishpie-logo.svg";
 import pkg from "../../../package.json" assert { type: "json" };
 import { usePieUI } from "@/pie/state/ui";
 
@@ -78,7 +78,7 @@ export default function AboutDialog() {
 
           <div className="px-12 pt-6 select-none">
             <div className="flex items-start gap-5">
-              <Image src={logo} alt="Fishpie" height={72} className="w-auto" />
+              <Image src={logo} alt="Fishpie" width={56} height={56} className="h-14 w-auto" />
               <div>
                 <div className="text-3xl font-semibold mb-1">Fishpie</div>
                 <div className="text-base opacity-70">A modern, web-native integrated development environment.</div>

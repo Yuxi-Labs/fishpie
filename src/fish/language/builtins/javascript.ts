@@ -1,4 +1,4 @@
-import type { LanguageProvider, Token } from "../types";
+import type { LanguageProvider, Token, Position, CompletionItem, Hover } from "../types";
 
 const jsKeywords = new Set([
   "break","case","catch","class","const","continue","debugger","default","delete","do","else","export","extends","finally","for","function","if","import","in","instanceof","let","new","return","super","switch","this","throw","try","typeof","var","void","while","with","yield","async","await"
@@ -32,4 +32,14 @@ export const javascript: LanguageProvider = {
     }
     return tokens;
   },
+  complete(_text: string, _pos: Position): CompletionItem[] {
+    return Array.from(jsKeywords).slice(0, 20).map(k => ({ label: k, kind: "keyword" }));
+  },
+  hover(text: string, position: Position): Hover | null {
+    const toks = javascript.tokenize!(text) as Token[];
+    const t = toks.find((tk: Token) => tk.range.start.line === position.line && position.column >= tk.range.start.column && position.column <= tk.range.end.column);
+    if (!t) return null;
+    const map: Record<string, string> = { keyword: "JavaScript keyword", string: "String literal", comment: "Comment" };
+    return { contents: map[t.type] ?? t.type, range: t.range };
+  }
 };

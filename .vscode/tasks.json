@@ -112,6 +112,66 @@
 				"$vitest-watch"
 			],
 			"group": "test"
+		},
+		{
+			"label": "lint+test",
+			"type": "shell",
+			"command": "npm run -s lint && npm run -s test",
+			"group": "build"
+		},
+		{
+			"label": "lint+test",
+			"type": "shell",
+			"command": "npm run -s lint && npm run -s test",
+			"group": "build"
+		},
+		{
+			"label": "lint+test",
+			"type": "shell",
+			"command": "npm run -s lint && npm run -s test",
+			"group": "build"
+		},
+		{
+			"label": "run tests (capture)",
+			"type": "shell",
+			"command": "npm run -s test",
+			"group": "build"
+		},
+		{
+			"label": "check (lint+typecheck+test)",
+			"type": "shell",
+			"command": "npm run -s check",
+			"problemMatcher": [
+				"$eslint-stylish"
+			],
+			"group": "build"
+		},
+		{
+			"label": "check now (lint+typecheck+test)",
+			"type": "shell",
+			"command": "npm run -s check && echo CHECK_EXIT=$LASTEXITCODE",
+			"problemMatcher": [
+				"$eslint-stylish"
+			],
+			"group": "build"
+		},
+		{
+			"label": "re-run check",
+			"type": "shell",
+			"command": "npm run -s check",
+			"problemMatcher": [
+				"$eslint-stylish"
+			],
+			"group": "build"
+		},
+		{
+			"label": "run check again",
+			"type": "shell",
+			"command": "npm run -s check",
+			"problemMatcher": [
+				"$eslint-stylish"
+			],
+			"group": "build"
 		}
 	]
 }

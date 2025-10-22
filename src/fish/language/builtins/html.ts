@@ -1,4 +1,4 @@
-import type { LanguageProvider, Token } from "../types";
+import type { LanguageProvider, Token, Position, CompletionItem, Hover } from "../types";
 
 export const html: LanguageProvider = {
   id: "html",
@@ -21,4 +21,20 @@ export const html: LanguageProvider = {
     }
     return tokens;
   },
+  complete(_text: string, _pos: Position): CompletionItem[] {
+    return [
+      { label: "<div>", kind: "tag", insertText: "<div>\n  $0\n</div>" },
+      { label: "<span>", kind: "tag" },
+      { label: "<script>", kind: "tag" },
+      { label: "<link>", kind: "tag" },
+      { label: "<meta>", kind: "tag" },
+    ];
+  },
+  async hover(text: string, position: Position): Promise<Hover | null> {
+    const maybe = html.tokenize?.(text) ?? [];
+    const toks: Token[] = maybe instanceof Promise ? await maybe : maybe as Token[];
+    const t = toks.find((tk: Token) => tk.range.start.line === position.line && position.column >= tk.range.start.column && position.column <= tk.range.end.column);
+    if (!t) return null;
+    return { contents: t.type === 'tag' ? 'HTML tag' : 'HTML', range: t.range };
+  }
 };

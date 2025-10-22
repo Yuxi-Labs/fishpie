@@ -1,7 +1,7 @@
 "use client";
 import React, { type PropsWithChildren } from "react";
 import Image from "next/image";
-import logo from "../../../assets/images/fishpie-logo.png";
+import logo from "../../../assets/images/fishpie-logo.svg";
 import { Sidebar } from "@/pie/ui/Sidebar";
 import Outline from "@/pie/ui/Outline";
 import { Toolbar } from "@/pie/ui/Toolbar";
@@ -122,7 +122,7 @@ function Chrome({ children, projectId }: PieLayoutProps) {
                 {activeName ? (
                   <main className="min-h-0 overflow-hidden" onMouseDown={() => ui.setActiveGroup(g.id)}>
                     {React.isValidElement(children)
-                      ? React.cloneElement(children as React.ReactElement<{ active?: boolean; filename?: string }>, { active: isActive, filename: activeName })
+                      ? React.cloneElement(children as React.ReactElement<{ active?: boolean; filename?: string; initialText?: string }>, { active: isActive, filename: activeName, initialText: ui.getFileText?.(activeName) })
                       : children}
                   </main>
                 ) : (

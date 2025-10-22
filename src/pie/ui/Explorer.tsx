@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import type { JSX } from "react";
 import { Icon } from "@/pie/icons";
 import { usePieUI, type FSNode } from "@/pie/state/ui";
@@ -31,8 +31,11 @@ export function Explorer() {
       <div key={k} className="select-none">
         <div
           className={`flex items-center gap-1 px-2 py-1 rounded cursor-pointer hover:bg-black/5 dark:hover:bg-white/10 ${isSelected ? 'bg-black/5 dark:bg-white/10' : ''}`}
-          onClick={() => { if (isFolder) toggle(k); setSelected(k); }}
-          onDoubleClick={() => { if (!isFolder) { ui.openFile(node.path); ui.activateFile(node.path); } }}
+          onClick={() => {
+            setSelected(k);
+            if (isFolder) toggle(k);
+            else { ui.openFile(node.path); ui.activateFile(node.path); }
+          }}
         >
           {isFolder ? (
             <>

@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getOrLoadLanguage, languageForFilename } from "@/fish/language/registry";
-import type { Token } from "@/fish/language/types";
+import type { Token, CompletionItem, Position } from "@/fish/language/types";
 import { TextDocument } from "@/fish/core/document";
+import { autoPairDecision } from "@/fish/core/pairs";
 
 const MONO_FONT_STACK = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
 
@@ -62,6 +63,10 @@ export function FishEditor({ projectId, filename, language: langProp, initialTex
     return s;
   };
   const activeFile = getOrCreate(currentName);
+  // Refs to always point at the currently active file state without rebinding handlers
+  const fileNameRef = useRef<string>(currentName);
+  const fileStateRef = useRef<FileState>(activeFile);
+  const docRef = useRef<TextDocument>(activeFile.doc);
   const [text, setText] = useState<string>(activeFile.doc.toString());
   const [languageId, setLanguageId] = useState<string>(langProp ?? languageForFilename(currentName));
   const [tokens, setTokens] = useState<Token[]>([]);
@@ -77,6 +82,17 @@ export function FishEditor({ projectId, filename, language: langProp, initialTex
   useEffect(() => { anchorRef.current = anchor; }, [anchor]);
   useEffect(() => { textRef.current = text; }, [text]);
 
+  // Completion UI state
+  const [completions, setCompletions] = useState<CompletionItem[] | null>(null);
+  const [completionIndex, setCompletionIndex] = useState(0);
+  const [completionPos, setCompletionPos] = useState<{ x: number; y: number } | null>(null);
+  const completionOpenRef = useRef(false);
+  useEffect(() => { completionOpenRef.current = !!completions && completions.length > 0; }, [completions]);
+
+  // Hover UI state
+  const [hoverTip, setHoverTip] = useState<{ x: number; y: number; text: string } | null>(null);
+  const hoverTimerRef = useRef<number | null>(null);
+
   // Caret blink handling via repaint timer
   const blinkRef = useRef(true);
   const paintRef = useRef<(() => void) | null>(null);
@@ -90,16 +106,26 @@ export function FishEditor({ projectId, filename, language: langProp, initialTex
     const nextName = filename || "Untitled-1";
     setCurrentName(nextName);
     const next = getOrCreate(nextName);
+    // If we received initialText for a file that was not yet populated, hydrate it once
+    if (initialText != null && next.doc.toString() === "") {
+      next.doc = new TextDocument(initialText);
+      storeRef.current.set(nextName, next);
+    }
     setText(next.doc.toString());
     setCaret(next.caret);
     setAnchor(next.anchor);
     caretRef.current = next.caret;
     anchorRef.current = next.anchor;
     textRef.current = next.doc.toString();
+    fileNameRef.current = nextName;
+    fileStateRef.current = next;
+    docRef.current = next.doc;
     setLanguageId(langProp ?? languageForFilename(nextName));
     paintRef.current?.();
+    // close UI overlays when switching files
+    setCompletions(null); setHoverTip(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filename, langProp]);
+  }, [filename, langProp, initialText]);
 
   useEffect(() => {
     let cancelled = false;
@@ -317,7 +343,7 @@ export function FishEditor({ projectId, filename, language: langProp, initialTex
     return () => {
       ro.disconnect();
     };
-  }, [projectId, text, tokens, caret, anchor, hasSelection]);
+  }, [projectId, text, tokens, caret, anchor, hasSelection, completions, completionIndex, languageId]);
 
   // Blink timer: toggle visibility and repaint without re-binding the paint effect
   useEffect(() => {
@@ -340,6 +366,29 @@ export function FishEditor({ projectId, filename, language: langProp, initialTex
     if (!container) return;
 
   const onKeyDown = (e: KeyboardEvent) => {
+      // Completion palette navigation
+      if (completionOpenRef.current) {
+        if (e.key === "ArrowDown") { e.preventDefault(); setCompletionIndex((i) => Math.min((completions?.length ?? 1) - 1, i + 1)); return; }
+        if (e.key === "ArrowUp") { e.preventDefault(); setCompletionIndex((i) => Math.max(0, i - 1)); return; }
+        if (e.key === "Escape") { e.preventDefault(); setCompletions(null); return; }
+        if (e.key === "Enter" || e.key === "Tab") {
+          e.preventDefault();
+          const item = completions?.[completionIndex];
+          if (item) {
+            // Replace current word prefix with selection
+            const doc = docRef.current;
+            const cur = caretRef.current;
+            const lineText = textRef.current.split("\n")[cur.line] ?? "";
+            let startCol = cur.column;
+            while (startCol > 0 && /[A-Za-z0-9_@#\-]/.test(lineText[startCol - 1])) startCol--;
+            const insert = item.insertText ?? item.label;
+            const next = doc.replaceRange({ line: cur.line, column: startCol }, cur, insert);
+            const s = doc.toString(); setText(s); textRef.current = s; setCaret(next); caretRef.current = next; setAnchor(null); anchorRef.current = null;
+          }
+          setCompletions(null);
+          return;
+        }
+      }
       // Prevent page scrolling for arrows and space within editor area
       if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) {
         e.preventDefault();
@@ -403,69 +452,92 @@ export function FishEditor({ projectId, filename, language: langProp, initialTex
             const curCaret = caretRef.current;
             const curAnchor = anchorRef.current;
             let nextPos = curCaret;
+            const state = fileStateRef.current; const doc = docRef.current;
+            // Auto-pairs on keydown path
+            const lineText = textRef.current.split("\n")[curCaret.line] ?? "";
+            const nextChar = lineText[curCaret.column];
+            const decision = autoPairDecision(e.key, nextChar, languageId);
             if (curAnchor && (curAnchor.line !== curCaret.line || curAnchor.column !== curCaret.column)) {
-              nextPos = activeFile.doc.replaceRange(curAnchor, curCaret, e.key);
+              // When replacing selection with an opener, still pair
+              if (decision.kind === 'pair') {
+                nextPos = doc.replaceRange(curAnchor, curCaret, e.key + decision.close);
+                nextPos = { line: nextPos.line, column: nextPos.column - decision.close.length };
+              } else if (decision.kind === 'skip') {
+                nextPos = { ...curCaret, column: curCaret.column + 1 };
+              } else {
+                nextPos = doc.replaceRange(curAnchor, curCaret, e.key);
+              }
               setAnchor(null); anchorRef.current = null;
             } else {
-              nextPos = activeFile.doc.insertText(curCaret, e.key);
+              if (decision.kind === 'pair') {
+                const after = doc.insertText(curCaret, e.key + decision.close);
+                nextPos = { line: after.line, column: after.column - decision.close.length };
+              } else if (decision.kind === 'skip') {
+                nextPos = { ...curCaret, column: curCaret.column + 1 };
+              } else {
+                nextPos = doc.insertText(curCaret, e.key);
+              }
             }
-            activeFile.caret = nextPos; activeFile.anchor = null;
-            const s = activeFile.doc.toString(); setText(s); textRef.current = s;
+            state.caret = nextPos; state.anchor = null;
+            const s = doc.toString(); setText(s); textRef.current = s;
             setCaret(nextPos); caretRef.current = nextPos;
             return;
           }
           // If beforeinput is available, let it handle printable text
         }
-        if (e.key === "Enter") {
+  if (e.key === "Enter") {
           if (!beforeInputAvailable) {
             e.preventDefault();
             const curCaret = caretRef.current;
             const curAnchor = anchorRef.current;
             let nextPos = curCaret;
+            const state = fileStateRef.current; const doc = docRef.current;
             if (curAnchor && (curAnchor.line !== curCaret.line || curAnchor.column !== curCaret.column)) {
-              nextPos = activeFile.doc.replaceRange(curAnchor, curCaret, "\n");
+              nextPos = doc.replaceRange(curAnchor, curCaret, "\n");
               setAnchor(null); anchorRef.current = null;
             } else {
-              nextPos = activeFile.doc.insertNewline(curCaret);
+              nextPos = doc.insertNewline(curCaret);
             }
-            activeFile.caret = nextPos; activeFile.anchor = null;
-            const s = activeFile.doc.toString(); setText(s); textRef.current = s;
+            state.caret = nextPos; state.anchor = null;
+            const s = doc.toString(); setText(s); textRef.current = s;
             setCaret(nextPos); caretRef.current = nextPos;
             return;
           }
         }
-        if (e.key === "Backspace") {
+  if (e.key === "Backspace") {
           if (!beforeInputAvailable) {
             e.preventDefault();
             const curCaret = caretRef.current;
             const curAnchor = anchorRef.current;
             let nextPos = curCaret;
+            const state = fileStateRef.current; const doc = docRef.current;
             if (curAnchor && (curAnchor.line !== curCaret.line || curAnchor.column !== curCaret.column)) {
-              nextPos = activeFile.doc.deleteRange(curAnchor, curCaret);
+              nextPos = doc.deleteRange(curAnchor, curCaret);
               setAnchor(null); anchorRef.current = null;
             } else {
-              nextPos = activeFile.doc.deleteBackward(curCaret);
+              nextPos = doc.deleteBackward(curCaret);
             }
-            activeFile.caret = nextPos; activeFile.anchor = null;
-            const s = activeFile.doc.toString(); setText(s); textRef.current = s;
+            state.caret = nextPos; state.anchor = null;
+            const s = doc.toString(); setText(s); textRef.current = s;
             setCaret(nextPos); caretRef.current = nextPos;
             return;
           }
         }
-        if (e.key === "Delete") {
+  if (e.key === "Delete") {
           if (!beforeInputAvailable) {
             e.preventDefault();
             const curCaret = caretRef.current;
             const curAnchor = anchorRef.current;
             let nextPos = curCaret;
+            const state = fileStateRef.current; const doc = docRef.current;
             if (curAnchor && (curAnchor.line !== curCaret.line || curAnchor.column !== curCaret.column)) {
-              nextPos = activeFile.doc.deleteRange(curAnchor, curCaret);
+              nextPos = doc.deleteRange(curAnchor, curCaret);
               setAnchor(null); anchorRef.current = null;
             } else {
-              nextPos = activeFile.doc.deleteForward(curCaret);
+              nextPos = doc.deleteForward(curCaret);
             }
-            activeFile.caret = nextPos; activeFile.anchor = null;
-            const s = activeFile.doc.toString(); setText(s); textRef.current = s;
+            state.caret = nextPos; state.anchor = null;
+            const s = doc.toString(); setText(s); textRef.current = s;
             setCaret(nextPos); caretRef.current = nextPos;
             return;
           }
@@ -475,14 +547,15 @@ export function FishEditor({ projectId, filename, language: langProp, initialTex
           const curCaret = caretRef.current;
           const curAnchor = anchorRef.current;
           let nextPos = curCaret;
+          const state = fileStateRef.current; const doc = docRef.current;
           if (curAnchor && (curAnchor.line !== curCaret.line || curAnchor.column !== curCaret.column)) {
-            nextPos = activeFile.doc.replaceRange(curAnchor, curCaret, "\t");
+            nextPos = doc.replaceRange(curAnchor, curCaret, "\t");
             setAnchor(null); anchorRef.current = null;
           } else {
-            nextPos = activeFile.doc.insertText(curCaret, "\t");
+            nextPos = doc.insertText(curCaret, "\t");
           }
-          activeFile.caret = nextPos; activeFile.anchor = null;
-          const s = activeFile.doc.toString(); setText(s); textRef.current = s;
+          state.caret = nextPos; state.anchor = null;
+          const s = doc.toString(); setText(s); textRef.current = s;
           setCaret(nextPos); caretRef.current = nextPos;
           return;
         }
@@ -492,14 +565,15 @@ export function FishEditor({ projectId, filename, language: langProp, initialTex
             const curCaret = caretRef.current;
             const curAnchor = anchorRef.current;
             let nextPos = curCaret;
+            const state = fileStateRef.current; const doc = docRef.current;
             if (curAnchor && (curAnchor.line !== curCaret.line || curAnchor.column !== curCaret.column)) {
-              nextPos = activeFile.doc.replaceRange(curAnchor, curCaret, " ");
+              nextPos = doc.replaceRange(curAnchor, curCaret, " ");
               setAnchor(null); anchorRef.current = null;
             } else {
-              nextPos = activeFile.doc.insertText(curCaret, " ");
+              nextPos = doc.insertText(curCaret, " ");
             }
-            activeFile.caret = nextPos; activeFile.anchor = null;
-            const s = activeFile.doc.toString(); setText(s); textRef.current = s;
+            state.caret = nextPos; state.anchor = null;
+            const s = doc.toString(); setText(s); textRef.current = s;
             setCaret(nextPos); caretRef.current = nextPos;
             return;
           }
@@ -521,6 +595,23 @@ export function FishEditor({ projectId, filename, language: langProp, initialTex
           caretRef.current = next; setCaret(next);
           return;
         }
+        // Ctrl+Space -> open completions
+        if ((e.ctrlKey || e.metaKey) && e.key === " ") {
+          e.preventDefault();
+          (async () => {
+            const lang = await getOrLoadLanguage(languageId);
+            if (!lang?.complete) return;
+            const items = await lang.complete(textRef.current, caretRef.current as unknown as Position);
+            if (items && items.length) {
+              // Position popup under caret
+              const pos = measureCaretPixel(caretRef.current);
+              setCompletions(items);
+              setCompletionIndex(0);
+              setCompletionPos({ x: pos.x, y: pos.y });
+            }
+          })();
+          return;
+        }
       }
     };
 
@@ -534,53 +625,76 @@ export function FishEditor({ projectId, filename, language: langProp, initialTex
         const curCaret = caretRef.current;
         const curAnchor = anchorRef.current;
         let nextPos = curCaret;
+        const state = fileStateRef.current; const doc = docRef.current;
+        const lineText = textRef.current.split("\n")[curCaret.line] ?? "";
+        const nextChar = lineText[curCaret.column];
+        const decision = autoPairDecision(data, nextChar, languageId);
         if (curAnchor && (curAnchor.line !== curCaret.line || curAnchor.column !== curCaret.column)) {
-          nextPos = activeFile.doc.replaceRange(curAnchor, curCaret, data);
+          if (decision.kind === 'pair') {
+            nextPos = doc.replaceRange(curAnchor, curCaret, data + decision.close);
+            nextPos = { line: nextPos.line, column: nextPos.column - decision.close.length };
+          } else if (decision.kind === 'skip') {
+            nextPos = { ...curCaret, column: curCaret.column + 1 };
+          } else {
+            nextPos = doc.replaceRange(curAnchor, curCaret, data);
+          }
           setAnchor(null); anchorRef.current = null;
         } else {
-          nextPos = activeFile.doc.insertText(curCaret, data);
+          if (decision.kind === 'pair') {
+            const after = doc.insertText(curCaret, data + decision.close);
+            nextPos = { line: after.line, column: after.column - decision.close.length };
+          } else if (decision.kind === 'skip') {
+            nextPos = { ...curCaret, column: curCaret.column + 1 };
+          } else {
+            nextPos = doc.insertText(curCaret, data);
+          }
         }
-        activeFile.caret = nextPos; activeFile.anchor = null;
-        const s = activeFile.doc.toString(); setText(s); textRef.current = s;
+        state.caret = nextPos; state.anchor = null;
+        const s = doc.toString(); setText(s); textRef.current = s;
         setCaret(nextPos); caretRef.current = nextPos;
+        // maybe trigger completions for wordy characters
+  if (/^[A-Za-z@#\.]$/.test(data)) triggerCompletion.current?.();
       } else if (type === "insertLineBreak") {
         const curCaret = caretRef.current;
         const curAnchor = anchorRef.current;
         let nextPos = curCaret;
+        const state = fileStateRef.current; const doc = docRef.current;
         if (curAnchor && (curAnchor.line !== curCaret.line || curAnchor.column !== curCaret.column)) {
-          nextPos = activeFile.doc.replaceRange(curAnchor, curCaret, "\n");
+          nextPos = doc.replaceRange(curAnchor, curCaret, "\n");
           setAnchor(null); anchorRef.current = null;
         } else {
-          nextPos = activeFile.doc.insertNewline(curCaret);
+          nextPos = doc.insertNewline(curCaret);
         }
-        activeFile.caret = nextPos; activeFile.anchor = null;
-        const s = activeFile.doc.toString(); setText(s); textRef.current = s;
+        state.caret = nextPos; state.anchor = null;
+        const s = doc.toString(); setText(s); textRef.current = s;
         setCaret(nextPos); caretRef.current = nextPos;
-      } else if (type === "deleteContentBackward") {
+  } else if (type === "deleteContentBackward") {
         const curCaret = caretRef.current;
         const curAnchor = anchorRef.current;
         let nextPos = curCaret;
+        const state = fileStateRef.current; const doc = docRef.current;
         if (curAnchor && (curAnchor.line !== curCaret.line || curAnchor.column !== curCaret.column)) {
-          nextPos = activeFile.doc.deleteRange(curAnchor, curCaret);
+          nextPos = doc.deleteRange(curAnchor, curCaret);
           setAnchor(null); anchorRef.current = null;
         } else {
-          nextPos = activeFile.doc.deleteBackward(curCaret);
+          nextPos = doc.deleteBackward(curCaret);
         }
-        activeFile.caret = nextPos; activeFile.anchor = null;
-        const s = activeFile.doc.toString(); setText(s); textRef.current = s;
+        state.caret = nextPos; state.anchor = null;
+        const s = doc.toString(); setText(s); textRef.current = s;
         setCaret(nextPos); caretRef.current = nextPos;
-      } else if (type === "deleteContentForward") {
+  } else if (type === "deleteContentForward") {
         const curCaret = caretRef.current;
         const curAnchor = anchorRef.current;
         let nextPos = curCaret;
+        const state = fileStateRef.current; const doc = docRef.current;
         if (curAnchor && (curAnchor.line !== curCaret.line || curAnchor.column !== curCaret.column)) {
-          nextPos = activeFile.doc.deleteRange(curAnchor, curCaret);
+          nextPos = doc.deleteRange(curAnchor, curCaret);
           setAnchor(null); anchorRef.current = null;
         } else {
-          nextPos = activeFile.doc.deleteForward(curCaret);
+          nextPos = doc.deleteForward(curCaret);
         }
-        activeFile.caret = nextPos; activeFile.anchor = null;
-        const s = activeFile.doc.toString(); setText(s); textRef.current = s;
+        state.caret = nextPos; state.anchor = null;
+        const s = doc.toString(); setText(s); textRef.current = s;
         setCaret(nextPos); caretRef.current = nextPos;
       }
       // Ensure DOM content remains empty (canvas is source of truth)
@@ -647,6 +761,8 @@ export function FishEditor({ projectId, filename, language: langProp, initialTex
       const next = { line: li, column: col };
       caretRef.current = next; setCaret(next);
       anchorRef.current = next; setAnchor(next);
+  // dismiss overlays
+  setCompletions(null); setHoverTip(null);
       // Capture mousemove for drag selection
       const onMove = (ev: MouseEvent) => {
         const mx = ev.clientX - rect.left;
@@ -671,11 +787,42 @@ export function FishEditor({ projectId, filename, language: langProp, initialTex
       window.addEventListener("mouseup", onUp);
     };
 
+    const onMouseMove = (e: MouseEvent) => {
+      // Hover tooltip on Alt+move or after a short dwell
+      const doHover = async () => {
+        const canvas = canvasRef.current; if (!canvas) return; const ctx = canvas.getContext("2d"); if (!ctx) return;
+        const rect = canvas.getBoundingClientRect(); const x = e.clientX - rect.left; const y = e.clientY - rect.top;
+        const { textFontSize, lineNumberFontSize, lineHeight, pad, gutterExtra } = readSizing(container);
+        ctx.font = `normal ${textFontSize}px ${MONO_FONT_STACK}`;
+        const linesArr = textRef.current.split("\n");
+        ctx.save(); ctx.font = `normal ${lineNumberFontSize}px ${MONO_FONT_STACK}`; const numW = ctx.measureText(String(linesArr.length)).width; ctx.restore();
+        const gutterWidth = Math.ceil(pad + numW + pad + gutterExtra);
+        const li = Math.max(0, Math.min(Math.floor((y - pad) / lineHeight), linesArr.length - 1));
+        const textStartX = gutterWidth + pad;
+        const col = measureColumn(ctx, linesArr[li] ?? "", x, textStartX);
+        const lang = await getOrLoadLanguage(languageId);
+        if (!lang?.hover) return;
+        const hv = await lang.hover(textRef.current, { line: li, column: col });
+        if (hv && hv.contents) {
+          setHoverTip({ x: x + 12, y: pad + li * lineHeight + lineHeight, text: hv.contents });
+        } else {
+          setHoverTip(null);
+        }
+      };
+      if (e.altKey) {
+        doHover();
+        return;
+      }
+      if (hoverTimerRef.current) window.clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = window.setTimeout(() => { doHover(); }, 400);
+    };
+
     container.addEventListener("keydown", onKeyDown);
     container.addEventListener("beforeinput", onBeforeInput as EventListener);
     container.addEventListener("compositionstart", onCompositionStart as EventListener);
     container.addEventListener("compositionend", onCompositionEnd as EventListener);
-    container.addEventListener("mousedown", onMouseDown);
+  container.addEventListener("mousedown", onMouseDown);
+  container.addEventListener("mousemove", onMouseMove);
     container.tabIndex = 0; // make focusable
 
     return () => {
@@ -684,19 +831,86 @@ export function FishEditor({ projectId, filename, language: langProp, initialTex
       container.removeEventListener("compositionstart", onCompositionStart as EventListener);
       container.removeEventListener("compositionend", onCompositionEnd as EventListener);
       container.removeEventListener("mousedown", onMouseDown);
+      container.removeEventListener("mousemove", onMouseMove);
     };
   }, []);
+
+  // Compute caret pixel for popup placement
+  const measureCaretPixel = (pos: CaretPos): { x: number; y: number; lineHeight: number } => {
+    const canvas = canvasRef.current; const container = containerRef.current;
+    if (!canvas || !container) return { x: 0, y: 0, lineHeight: 20 };
+    const ctx = canvas.getContext("2d"); if (!ctx) return { x: 0, y: 0, lineHeight: 20 };
+    const { textFontSize, lineNumberFontSize, lineHeight, pad, gutterExtra } = readSizing(container);
+    const linesArr = textRef.current.split("\n");
+    ctx.font = `normal ${textFontSize}px ${MONO_FONT_STACK}`;
+    ctx.save(); ctx.font = `normal ${lineNumberFontSize}px ${MONO_FONT_STACK}`; const numW = ctx.measureText(String(linesArr.length)).width; ctx.restore();
+    const gutterWidth = Math.ceil(pad + numW + pad + gutterExtra);
+    const textStartX = gutterWidth + pad;
+    const lineText = linesArr[pos.line] ?? "";
+    const pre = lineText.slice(0, pos.column);
+    const x = textStartX + ctx.measureText(pre).width;
+    const y = pad + pos.line * lineHeight;
+    return { x, y, lineHeight };
+  };
+
+  const triggerCompletion = useRef<((force?: boolean) => void) | null>(null);
+  triggerCompletion.current = async () => {
+    const lang = await getOrLoadLanguage(languageId);
+    if (!lang?.complete) return;
+    const items = await lang.complete(textRef.current, caretRef.current as unknown as Position);
+    if (items && items.length) {
+      const pos = measureCaretPixel(caretRef.current);
+      setCompletions(items);
+      setCompletionIndex(0);
+      setCompletionPos({ x: pos.x, y: pos.y + pos.lineHeight });
+    } else {
+      setCompletions(null);
+    }
+  };
 
   return (
     <div
       ref={containerRef}
-  className="fish-editor h-full w-full overflow-x-hidden overflow-y-auto outline-none focus:outline-none cursor-default hover:cursor-text focus-within:cursor-text"
+      className="fish-editor h-full w-full overflow-x-hidden overflow-y-auto outline-none focus:outline-none cursor-default hover:cursor-text focus-within:cursor-text"
+      style={{ position: 'relative' }}
       // Enable input without hidden textarea; plaintext-only to avoid DOM sync
       contentEditable
       suppressContentEditableWarning
       spellCheck={false}
     >
       <canvas ref={canvasRef} />
+      {/* Completion popup */}
+      {completions && completionPos && (
+        <div
+          className="absolute z-50 max-h-64 overflow-auto min-w-40 text-xs rounded-md border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 shadow-xl"
+          style={{ left: Math.max(0, completionPos.x + 2), top: completionPos.y + 6 }}
+        >
+          {completions.map((c, i) => (
+            <div key={i} className={`px-3 py-1 whitespace-nowrap ${i === completionIndex ? 'bg-black/10 dark:bg-white/10' : ''}`}
+              onMouseDown={(e) => { e.preventDefault(); /* prevent blur */ }}
+              onMouseEnter={() => setCompletionIndex(i)}
+              onClick={() => {
+                const item = completions[i];
+                const doc = docRef.current; const cur = caretRef.current; const lineText = textRef.current.split("\n")[cur.line] ?? "";
+                let startCol = cur.column; while (startCol > 0 && /[A-Za-z0-9_@#\-]/.test(lineText[startCol - 1])) startCol--;
+                const insert = item.insertText ?? item.label; const next = doc.replaceRange({ line: cur.line, column: startCol }, cur, insert);
+                const s = doc.toString(); setText(s); textRef.current = s; setCaret(next); caretRef.current = next; setAnchor(null); anchorRef.current = null; setCompletions(null);
+              }}
+            >
+              <span className="opacity-80">{c.label}</span>
+              {c.detail ? <span className="ml-2 opacity-50">{c.detail}</span> : null}
+            </div>
+          ))}
+        </div>
+      )}
+      {/* Hover tooltip */}
+      {hoverTip && (
+        <div className="absolute z-40 max-w-xs text-xs px-2 py-1 rounded border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 shadow-md"
+          style={{ left: hoverTip.x, top: hoverTip.y }}
+        >
+          {hoverTip.text}
+        </div>
+      )}
     </div>
   );
 }

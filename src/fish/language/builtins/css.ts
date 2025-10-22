@@ -1,4 +1,4 @@
-import type { LanguageProvider, Token } from "../types";
+import type { LanguageProvider, Token, Position, Hover, CompletionItem } from "../types";
 
 export const css: LanguageProvider = {
   id: "css",
@@ -20,5 +20,27 @@ export const css: LanguageProvider = {
       }
     }
     return tokens;
+  },
+  complete(_text: string, _position: Position): CompletionItem[] {
+    return [
+      { label: "@media", kind: "keyword" },
+      { label: "@supports", kind: "keyword" },
+      { label: "@import", kind: "keyword" },
+      { label: "color", kind: "property" },
+      { label: "background", kind: "property" },
+      { label: "font-size", kind: "property" },
+      { label: "margin", kind: "property" },
+      { label: "padding", kind: "property" },
+      { label: "display", kind: "property" },
+      { label: "position", kind: "property" },
+    ];
+  },
+  async hover(text: string, position: Position): Promise<Hover | null> {
+    const maybe = css.tokenize ? css.tokenize(text) : [];
+    const toks: Token[] = (maybe instanceof Promise) ? await maybe : (maybe as Token[]);
+    const t = toks.find((tok: Token) => tok.range.start.line === position.line && position.column >= tok.range.start.column && position.column <= tok.range.end.column);
+    if (!t) return null;
+    const map: Record<string, string> = { "comment": "CSS comment", "at-rule": "CSS at-rule" };
+    return { contents: map[t.type] ?? `CSS ${t.type}`, range: t.range };
   },
 };
