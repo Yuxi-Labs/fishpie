@@ -1,11 +1,11 @@
 <img src="assets/images/fishpie-logo-full.png" alt="Fishpie logo" width="320" />
 
 <p>
-  <img src="https://img.shields.io/github/actions/workflow/status/Yuxi-Labs/vscode-gptp/continuous-integration.yml?branch=release%2Fv0.2.0" alt="Build Status" />
-  <img src="https://img.shields.io/github/v/release/Yuxi-Labs/vscode-gptp?include_prereleases&sort=semver" alt="Latest Release" />
-  <img src="https://img.shields.io/github/issues/Yuxi-Labs/vscode-gptp" alt="Open Issues" />
-  <img src="https://img.shields.io/github/issues-pr/Yuxi-Labs/vscode-gptp" alt="Pull Requests" />
-  <img src="https://img.shields.io/github/last-commit/Yuxi-Labs/vscode-gptp" alt="Last Commit" />
+  <img src="https://img.shields.io/github/actions/workflow/status/Yuxi-Labs/fishpie/continuous-integration.yml?branch=release%2Fv0.1.0" alt="Build Status" />
+  <img src="https://img.shields.io/github/v/release/Yuxi-Labs/fishpie?include_prereleases&sort=semver" alt="Latest Release" />
+  <img src="https://img.shields.io/github/issues/Yuxi-Labs/fishpie" alt="Open Issues" />
+  <img src="https://img.shields.io/github/issues-pr/Yuxi-Labs/fishpie" alt="Pull Requests" />
+  <img src="https://img.shields.io/github/last-commit/Yuxi-Labs/fishpie" alt="Last Commit" />
   <img src="https://img.shields.io/badge/License-MIT-blue" alt="License: MIT" />
 </p>
 
