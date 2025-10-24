@@ -11,6 +11,16 @@
 
 A modern, web-native integrated development environment for writing code, domain-specific languages and more.
 
+## Language, highlighting, hover, and completions
+
+Fishpie ships with a lightweight, client-side language system. Built-in providers include plaintext, Markdown, HTML, CSS/SCSS, JavaScript, TypeScript, and a simple Story format. Each provider can supply:
+
+- tokenization for syntax highlighting
+- hover tooltips for quick docs
+- basic completions (Ctrl+Space) for IntelliSense-like suggestions
+
+Language is inferred strictly from the filename (Lang = filetype). The editor ignores manual language overrides and uses the file extension mapping defined in `src/fish/language/registry.ts`. To get highlighting/hover/completions, provide a filename via the workspace URL (e.g. `/workspace/untitled?filename=page.md`) or via the `filename` prop on `FishEditor`.
+
 ## Editor sizing (line numbers, gutter, caret)
 
 The canvas-based `FishEditor` exposes CSS variables you can tweak to adjust line numbers, gutter width, caret size, and line height without changing code. These variables are scoped to the `.fish-editor` class.

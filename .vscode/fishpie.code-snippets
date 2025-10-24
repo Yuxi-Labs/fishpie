@@ -1,0 +1,100 @@
+{
+  // Global workspace snippets usable in most files
+  "React functional component (TSX)": {
+    "scope": "typescriptreact",
+    "prefix": ["rfc", "component"],
+    "body": [
+      "import React from 'react';",
+      "",
+      "export function ${1:ComponentName}(${2:props}: ${3:Props}): JSX.Element {",
+      "  return (",
+      "    <div className=\"${4:container}\">$0</div>",
+      "  );",
+      "}"
+    ],
+    "description": "React function component (TypeScript)"
+  },
+  "Next.js page route (TSX)": {
+    "scope": "typescriptreact",
+    "prefix": ["nextpage"],
+    "body": [
+      "export default function ${1:Page}() {",
+      "  return (",
+      "    <main className=\"p-6\">$0</main>",
+      "  );",
+      "}"
+    ],
+    "description": "Next.js app router page"
+  },
+  "Tailwind container": {
+    "scope": "typescriptreact,html",
+    "prefix": ["twcontainer"],
+    "body": [
+      "<div className=\"container mx-auto px-4\">$0</div>"
+    ],
+    "description": "Tailwind container div"
+  },
+  "HTML boilerplate": {
+    "scope": "html",
+    "prefix": ["html5"],
+    "body": [
+      "<!doctype html>",
+      "<html lang=\"en\">",
+      "<head>",
+      "  <meta charset=\"UTF-8\" />",
+      "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />",
+      "  <title>${1:Document}</title>",
+      "</head>",
+      "<body>",
+      "  $0",
+      "</body>",
+      "</html>"
+    ],
+    "description": "HTML5 boilerplate"
+  },
+  "CSS rule": {
+    "scope": "css,scss",
+    "prefix": ["rule"],
+    "body": [
+      "${1:selector} {",
+      "  ${2:property}: ${3:value};",
+      "}"
+    ],
+    "description": "CSS/SCSS rule"
+  },
+  "Markdown heading": {
+    "scope": "markdown",
+    "prefix": ["h1","heading"],
+    "body": [
+      "# ${1:Title}",
+      "",
+      "$0"
+    ],
+    "description": "Markdown heading with spacer"
+  },
+  "GPTP block": {
+    "scope": "json",
+    "prefix": ["gptp"],
+    "body": [
+      "{",
+      "  \"connections\": {},",
+      "  \"providers\": {},",
+      "  \"active\": \"${1:default}\",",
+      "  \"messages\": [",
+      "    { \"role\": \"user\", \"content\": \"$0\" }",
+      "  ]",
+      "}"
+    ],
+    "description": "Starter GPTP JSON"
+  },
+  "Story scene header": {
+    "scope": "markdown,plaintext",
+    "prefix": ["scene", "storyscene"],
+    "body": [
+      "== ${1:Scene Title} ==",
+      "",
+      "$0"
+    ],
+    "description": "Fishpie Story scene header"
+  }
+}

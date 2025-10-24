@@ -62,7 +62,7 @@ function Chrome({ children, projectId }: PieLayoutProps) {
 
   return (
     <>
-  <div className="fixed inset-0 grid grid-rows-[auto_1fr_auto] overflow-x-hidden" style={{ gridTemplateColumns: colWidths }}>
+  <div className="fixed inset-0 grid grid-rows-[auto_1fr_auto] overflow-hidden" style={{ gridTemplateColumns: colWidths }}>
       {/* Toolbar spans across content area (excluding ActivityBar on desktop) */}
       <div className="row-start-1 col-start-1 col-span-3 sm:col-start-2 sm:col-span-2">
         <Toolbar projectId={projectId} />
@@ -101,15 +101,15 @@ function Chrome({ children, projectId }: PieLayoutProps) {
           {ui.groups.map((g) => {
             const isActive = ui.activeGroupId === g.id;
             const activeName = g.activeFile;
+            const hasFiles = g.openFiles.length > 0;
             return (
-              <div key={g.id} className={`min-w-0 border-r last:border-r-0 border-black/10 dark:border-white/10 grid min-h-0 ${g.openFiles.length>0 ? 'grid-rows-[auto_auto_1fr]' : 'grid-rows-[1fr]'}`}>
-                {/* Tabs and breadcrumbs only when this editor has tabs */}
-                {g.openFiles.length>0 && (
+              <div key={g.id} className={`min-w-0 border-r last:border-r-0 border-black/10 dark:border-white/10 grid min-h-0 ${hasFiles && activeName ? 'grid-rows-[auto_auto_1fr]' : hasFiles ? 'grid-rows-[auto_1fr]' : 'grid-rows-[1fr]'}`}>
+                {hasFiles && (
                   <div className="min-w-0">
                     <EditorTabs group={g} isActive={isActive} />
                   </div>
                 )}
-                {g.openFiles.length>0 && activeName && (
+                {hasFiles && activeName && (
                   <div className="min-w-0 border-b border-black/10 dark:border-white/10">
                     {(() => {
                       const parts = (activeName || '').split('/').filter(Boolean);
@@ -119,14 +119,16 @@ function Chrome({ children, projectId }: PieLayoutProps) {
                   </div>
                 )}
                 {/* Editor content */}
-                {activeName ? (
+                {hasFiles && activeName ? (
                   <main className="min-h-0 overflow-hidden" onMouseDown={() => ui.setActiveGroup(g.id)}>
                     {React.isValidElement(children)
-                      ? React.cloneElement(children as React.ReactElement<{ active?: boolean; filename?: string; initialText?: string }>, { active: isActive, filename: activeName, initialText: ui.getFileText?.(activeName) })
+                      ? React.cloneElement(children as React.ReactElement<{ active?: boolean; filename?: string; initialText?: string; onTextChange?: (name: string, text: string) => void }>, { active: isActive, filename: activeName, initialText: ui.getFileText?.(activeName), onTextChange: (name: string, text: string) => ui.setFileText(name, text) })
                       : children}
                   </main>
                 ) : (
-                  <div className="px-4 py-6 text-xs opacity-60">Open a tab to get started. Double-click here or use File → New Tab.</div>
+                  <div className="min-h-0 flex items-center justify-center">
+                    {!hasFiles && <Welcome />}
+                  </div>
                 )}
               </div>
             );

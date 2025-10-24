@@ -144,3 +144,7 @@ The app is built with Next.js (App Router), React, and TypeScript. Styling uses 
 ---
 
 This spec describes the direction implemented in the current codebase: persistent customizable layout, panel docking, secondary sidebar, command palette, local SVG icon system, and canvas-native editing.
+
+## Related Specs
+
+- Tabs UX: see `docs/ui-tabs-spec.md` for the authoritative tabs behavior and acceptance criteria.

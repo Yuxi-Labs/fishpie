@@ -51,9 +51,12 @@ export type UIState = {
   closeFile: (name: string, groupId?: string) => void;
   activateFile: (name: string, groupId?: string) => void;
   markDirty: (name: string, dirty: boolean) => void;
+  // Rename the active file (updates tabs, active name, and cached content)
+  renameActiveFile: (newName: string) => void;
 
   // File text cache accessor
   getFileText: (name: string) => string | undefined;
+  setFileText: (name: string, text: string) => void;
 
   // Editor status (mock for now)
   cursor: { line: number; column: number };
@@ -99,73 +102,137 @@ export function PieUIProvider({ children }: { children: React.ReactNode }) {
   const [groups, setGroups] = useState<EditorGroup[]>(() => {
     try {
       const raw = localStorage.getItem('ui.groups');
-      if (raw) return JSON.parse(raw) as EditorGroup[];
+      if (raw) {
+        const parsed = JSON.parse(raw) as unknown;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed as EditorGroup[];
+        }
+      }
     } catch {}
     return [{ id: 'g1', openFiles: [], activeFile: undefined }];
   });
   const [activeGroupId, setActiveGroupId] = useState<string>(() => localStorage.getItem('ui.activeGroupId') || 'g1');
+  // Monotonic counter to ensure every new untitled tab gets a fresh, never-reused name
+  const [untitledSeq, setUntitledSeq] = useState<number>(() => {
+    const raw = localStorage.getItem('ui.untitledSeq');
+    const n = parseInt(raw || '1', 10);
+    return Number.isFinite(n) && n > 0 ? n : 1;
+  });
   const [showAbout, setShowAbout] = useState(false);
   // In-memory FS handles and loaded texts for current workspace
   const fileHandlesRef = React.useRef<Map<string, FileSystemFileHandle>>(new Map());
   const [fileTexts, setFileTexts] = useState<Record<string, string>>({});
 
-  const persistGroups = (next: EditorGroup[]) => {
-    setGroups(next);
-    try { localStorage.setItem('ui.groups', JSON.stringify(next)); } catch {}
-  };
+  // Load persisted file texts on startup
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const saved = await idbGet<Record<string, string>>('fileTexts');
+        if (saved) setFileTexts(saved);
+      } catch {}
+    })();
+  }, []);
 
-  const getGroupIndex = useCallback((groupId?: string) => groups.findIndex(g => g.id === (groupId || activeGroupId)), [groups, activeGroupId]);
+  // Persist file texts on change (debounced behavior could be added later)
+  React.useEffect(() => {
+    (async () => {
+      try { await idbSet('fileTexts', fileTexts); } catch {}
+    })();
+  }, [fileTexts]);
 
-  const splitEditorRight = useCallback(() => {
-    // Only split when an editor exists
-    if (groups.length === 0) return;
-    const id = `g${Date.now().toString(36)}`;
-    const insertAfter = groups.findIndex(g => g.id === activeGroupId);
-    const next = groups.slice();
-    // Seed the new editor with the active file if one exists; otherwise start with Untitled-1
-    const src = groups.find(g => g.id === activeGroupId) || groups[0];
-    let seeded: EditorGroup;
-    const uniqueUntitled = () => {
-      const allNames = new Set<string>();
-      for (const g of groups) for (const f of g.openFiles) allNames.add(f.name);
-      let n = 1;
-      while (allNames.has(`Untitled-${n}`)) n++;
-      return `Untitled-${n}`;
-    };
-    if (src && src.activeFile) {
-      seeded = { id, openFiles: [{ name: src.activeFile }], activeFile: src.activeFile };
-    } else {
-      const name = uniqueUntitled();
-      seeded = { id, openFiles: [{ name }], activeFile: name };
-    }
-    if (insertAfter >= 0) next.splice(insertAfter + 1, 0, seeded); else next.push(seeded);
-    persistGroups(next);
-    setActiveGroupId(id);
-    try { localStorage.setItem('ui.activeGroupId', id); } catch {}
+  const persistGroups = useCallback((next: EditorGroup[]) => {
+    const safe = next && next.length > 0 ? next : [{ id: 'g1', openFiles: [], activeFile: undefined }];
+    setGroups(safe);
+    try { localStorage.setItem('ui.groups', JSON.stringify(safe)); } catch {}
+  }, []);
+
+  const getGroupIndex = useCallback((groupId?: string) => {
+    if (!groups || groups.length === 0) return 0;
+    const idx = groups.findIndex(g => g.id === (groupId || activeGroupId));
+    return idx === -1 ? 0 : idx;
   }, [groups, activeGroupId]);
 
+  // Generate a fresh untitled name and advance the sequence
+  const nextUntitledName = useCallback(() => {
+    const name = `Untitled-${untitledSeq}`;
+    const next = untitledSeq + 1;
+    setUntitledSeq(next);
+    try { localStorage.setItem('ui.untitledSeq', String(next)); } catch {}
+    return name;
+  }, [untitledSeq]);
+
+  const splitEditorRight = useCallback(() => {
+    setGroups(currentGroups => {
+      // Ensure at least one editor exists
+      if (currentGroups.length === 0) {
+        const defaultGroup = [{ id: 'g1', openFiles: [], activeFile: undefined }];
+        setActiveGroupId('g1');
+        try { localStorage.setItem('ui.groups', JSON.stringify(defaultGroup)); } catch {}
+        return defaultGroup;
+      }
+      
+      const id = `g${Date.now().toString(36)}`;
+      const insertAfter = currentGroups.findIndex(g => g.id === activeGroupId);
+      const next = currentGroups.slice();
+      // Seed the new editor with the active file if one exists; otherwise start with Untitled-1
+      const src = currentGroups.find(g => g.id === activeGroupId) || currentGroups[0];
+      let seeded: EditorGroup;
+      const uniqueUntitled = () => nextUntitledName();
+      if (src && src.activeFile) {
+        seeded = { id, openFiles: [{ name: src.activeFile }], activeFile: src.activeFile };
+      } else {
+        const name = uniqueUntitled();
+        seeded = { id, openFiles: [{ name }], activeFile: name };
+      }
+      if (insertAfter >= 0) next.splice(insertAfter + 1, 0, seeded); else next.push(seeded);
+      setActiveGroupId(id);
+      try { localStorage.setItem('ui.groups', JSON.stringify(next)); } catch {}
+      try { localStorage.setItem('ui.activeGroupId', id); } catch {}
+      return next;
+    });
+  }, [activeGroupId, nextUntitledName]);
+
   const newTab = useCallback((groupId?: string) => {
-    const idx = getGroupIndex(groupId);
-    if (idx === -1) return;
-    const g = groups[idx];
-    // Find next Untitled-N
-    let n = 1;
-    const names = new Set(g.openFiles.map(f => f.name));
-    while (names.has(`Untitled-${n}`)) n++;
-    const name = `Untitled-${n}`;
-    const ng: EditorGroup = { ...g, openFiles: [...g.openFiles, { name }], activeFile: name };
-    const next = groups.slice(); next[idx] = ng; persistGroups(next);
-    if (!groupId) { setActiveGroupId(g.id); try { localStorage.setItem('ui.activeGroupId', g.id); } catch {} }
-  }, [groups, getGroupIndex]);
+    setGroups(currentGroups => {
+      const targetId = groupId || activeGroupId;
+      let idx = currentGroups.findIndex(g => g.id === targetId);
+      if (idx === -1) idx = 0;
+      
+      const g = currentGroups[idx];
+      // Always create a fresh Untitled-N using a monotonic sequence
+      const name = nextUntitledName();
+      const ng: EditorGroup = { ...g, openFiles: [...g.openFiles, { name }], activeFile: name };
+      const next = currentGroups.slice();
+      next[idx] = ng;
+      try { localStorage.setItem('ui.groups', JSON.stringify(next)); } catch {}
+      if (!groupId) { setActiveGroupId(g.id); try { localStorage.setItem('ui.activeGroupId', g.id); } catch {} }
+      return next;
+    });
+  }, [activeGroupId, nextUntitledName]);
 
   const openFile = useCallback((name: string, groupId?: string) => {
-    const idx = getGroupIndex(groupId);
-    if (idx === -1) return;
-    const g = groups[idx];
-    const exists = g.openFiles.find(f => f.name === name);
-    const ng: EditorGroup = exists ? { ...g, activeFile: name } : { ...g, openFiles: [...g.openFiles, { name }], activeFile: name };
-    const next = groups.slice(); next[idx] = ng; persistGroups(next);
-    if (!groupId) { setActiveGroupId(g.id); try { localStorage.setItem('ui.activeGroupId', g.id); } catch {} }
+    setGroups(currentGroups => {
+      // If groups somehow empty, seed a default group
+      if (currentGroups.length === 0) {
+        const defaultGroup = [{ id: 'g1', openFiles: [{ name }], activeFile: name }];
+        try { localStorage.setItem('ui.groups', JSON.stringify(defaultGroup)); } catch {}
+        if (!groupId) { setActiveGroupId('g1'); try { localStorage.setItem('ui.activeGroupId', 'g1'); } catch {} }
+        return defaultGroup;
+      }
+      
+      const targetId = groupId || activeGroupId;
+      let idx = currentGroups.findIndex(g => g.id === targetId);
+      if (idx === -1) idx = 0;
+      
+      const g = currentGroups[idx];
+      const exists = g.openFiles.find(f => f.name === name);
+      const ng: EditorGroup = exists ? { ...g, activeFile: name } : { ...g, openFiles: [...g.openFiles, { name }], activeFile: name };
+      const next = currentGroups.slice();
+      next[idx] = ng;
+      try { localStorage.setItem('ui.groups', JSON.stringify(next)); } catch {}
+      if (!groupId) { setActiveGroupId(g.id); try { localStorage.setItem('ui.activeGroupId', g.id); } catch {} }
+      return next;
+    });
     // Load file text into cache if available and not yet loaded
     (async () => {
       try {
@@ -181,47 +248,125 @@ export function PieUIProvider({ children }: { children: React.ReactNode }) {
         console.warn('Failed to read file', name, e);
       }
     })();
-  }, [groups, getGroupIndex, fileTexts]);
+  }, [groups, getGroupIndex, fileTexts, persistGroups]);
 
   const closeFile = useCallback((name: string, groupId?: string) => {
-    const idx = getGroupIndex(groupId);
-    if (idx === -1) return;
-    const g = groups[idx];
-    const remaining = g.openFiles.filter(f => f.name !== name);
-    if (remaining.length === 0) {
-      // Remove this editor if there are multiple; otherwise keep empty editor
-      if (groups.length > 1) {
-        const next = groups.filter((_, i) => i !== idx);
-        persistGroups(next);
-        // pick a new active editor
-        const nextActive = next[Math.min(idx, next.length - 1)]?.id;
-        if (nextActive) { setActiveGroupId(nextActive); try { localStorage.setItem('ui.activeGroupId', nextActive); } catch {} }
-        return;
-      } else {
-        const ng: EditorGroup = { ...g, openFiles: [], activeFile: undefined };
-        const next = groups.slice(); next[idx] = ng; persistGroups(next);
-        return;
+    setGroups(currentGroups => {
+      const targetId = groupId || activeGroupId;
+      let idx = currentGroups.findIndex(g => g.id === targetId);
+      if (idx === -1) idx = 0;
+      
+      const g = currentGroups[idx];
+      const remaining = g.openFiles.filter(f => f.name !== name);
+      
+      if (remaining.length === 0) {
+        // Remove this editor if there are multiple; otherwise keep empty editor
+        if (currentGroups.length > 1) {
+          const next = currentGroups.filter((_, i) => i !== idx);
+          const safeNext = next.length > 0 ? next : [{ id: 'g1', openFiles: [], activeFile: undefined }];
+          try { localStorage.setItem('ui.groups', JSON.stringify(safeNext)); } catch {}
+          // pick a new active editor
+          const nextActive = (next.length > 0 ? next[Math.min(idx, next.length - 1)]?.id : 'g1');
+          if (nextActive) { setActiveGroupId(nextActive); try { localStorage.setItem('ui.activeGroupId', nextActive); } catch {} }
+          return safeNext;
+        } else {
+          const ng: EditorGroup = { ...g, openFiles: [], activeFile: undefined };
+          const next = currentGroups.slice();
+          next[idx] = ng;
+          try { localStorage.setItem('ui.groups', JSON.stringify(next)); } catch {}
+          return next;
+        }
       }
-    }
-    const ng: EditorGroup = { ...g, openFiles: remaining, activeFile: g.activeFile === name ? remaining[0]?.name : g.activeFile };
-    const next = groups.slice(); next[idx] = ng; persistGroups(next);
-  }, [groups, getGroupIndex]);
+      
+      // When closing a tab, select the next appropriate tab
+      let newActiveFile: string | undefined;
+      if (g.activeFile === name) {
+        // Find the index of the file being closed
+        const closingIdx = g.openFiles.findIndex(f => f.name === name);
+        // Try to select the next tab, or the previous one if closing the last tab
+        if (closingIdx < remaining.length) {
+          newActiveFile = remaining[closingIdx]?.name;
+        } else if (remaining.length > 0) {
+          newActiveFile = remaining[remaining.length - 1]?.name;
+        }
+      } else {
+        newActiveFile = g.activeFile;
+      }
+      
+      const ng: EditorGroup = { ...g, openFiles: remaining, activeFile: newActiveFile };
+      const next = currentGroups.slice();
+      next[idx] = ng;
+      try { localStorage.setItem('ui.groups', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, [activeGroupId]);
 
   const activateFile = useCallback((name: string, groupId?: string) => {
-    const idx = getGroupIndex(groupId);
-    if (idx === -1) return;
-    const g = groups[idx];
-    const ng: EditorGroup = { ...g, activeFile: name };
-    const next = groups.slice(); next[idx] = ng; persistGroups(next);
-    if (!groupId) { setActiveGroupId(g.id); try { localStorage.setItem('ui.activeGroupId', g.id); } catch {} }
-  }, [groups, getGroupIndex]);
+    setGroups(currentGroups => {
+      const targetId = groupId || activeGroupId;
+      let idx = currentGroups.findIndex(g => g.id === targetId);
+      if (idx === -1) idx = 0;
+      
+      const g = currentGroups[idx];
+      const ng: EditorGroup = { ...g, activeFile: name };
+      const next = currentGroups.slice();
+      next[idx] = ng;
+      try { localStorage.setItem('ui.groups', JSON.stringify(next)); } catch {}
+      if (!groupId) { setActiveGroupId(g.id); try { localStorage.setItem('ui.activeGroupId', g.id); } catch {} }
+      return next;
+    });
+  }, [activeGroupId]);
 
   const markDirty = useCallback((name: string, dirty: boolean) => {
-    const idx = getGroupIndex(); if (idx === -1) return;
-    const g = groups[idx];
-    const ng: EditorGroup = { ...g, openFiles: g.openFiles.map(f => (f.name === name ? { ...f, dirty } : f)) };
-    const next = groups.slice(); next[idx] = ng; persistGroups(next);
-  }, [groups, getGroupIndex]);
+    setGroups(currentGroups => {
+      const targetId = activeGroupId;
+      let idx = currentGroups.findIndex(g => g.id === targetId);
+      if (idx === -1) idx = 0;
+      
+      const g = currentGroups[idx];
+      const ng: EditorGroup = { ...g, openFiles: g.openFiles.map(f => (f.name === name ? { ...f, dirty } : f)) };
+      const next = currentGroups.slice();
+      next[idx] = ng;
+      try { localStorage.setItem('ui.groups', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, [activeGroupId]);
+
+  const renameActiveFile = useCallback((newName: string) => {
+    setGroups(currentGroups => {
+      const targetId = activeGroupId;
+      const gIdx = currentGroups.findIndex(g => g.id === targetId);
+      if (gIdx === -1) return currentGroups;
+      
+      const g = currentGroups[gIdx];
+      const oldName = g.activeFile;
+      if (!oldName) return currentGroups;
+      
+      // Update across all groups where this file is open
+      const nextGroups = currentGroups.map(grp => {
+        const opened = grp.openFiles.map(f => f.name === oldName ? { ...f, name: newName } : f);
+        const active = grp.activeFile === oldName ? newName : grp.activeFile;
+        return { ...grp, openFiles: opened, activeFile: active };
+      });
+      
+      // Move cached text under new key
+      setFileTexts(prev => {
+        if (prev[oldName] == null) return prev;
+        const { [oldName]: txt, ...rest } = prev;
+        return { ...rest, [newName]: txt };
+      });
+      
+      // Move file handle if present
+      const fh = fileHandlesRef.current.get(oldName);
+      if (fh) {
+        fileHandlesRef.current.delete(oldName);
+        fileHandlesRef.current.set(newName, fh);
+      }
+      
+      try { localStorage.setItem('ui.groups', JSON.stringify(nextGroups)); } catch {}
+      return nextGroups;
+    });
+  }, [activeGroupId]);
 
   // persist on change (derived hasWorkspace is not persisted)
   React.useEffect(() => { localStorage.setItem('ui.activeActivity', activeActivity); }, [activeActivity]);
@@ -243,6 +388,21 @@ export function PieUIProvider({ children }: { children: React.ReactNode }) {
     const next = anyOpenFile || hasFolder;
     setHasWorkspace(next);
   }, [groups, hasFolder]);
+
+  // Ensure there is always at least one editor group and a valid activeGroupId
+  React.useEffect(() => {
+    if (!groups || groups.length === 0) {
+      persistGroups([{ id: 'g1', openFiles: [], activeFile: undefined }]);
+      setActiveGroupId('g1');
+      return;
+    }
+    const exists = groups.some(g => g.id === activeGroupId);
+    if (!exists) {
+      const first = groups[0]?.id || 'g1';
+      setActiveGroupId(first);
+      try { localStorage.setItem('ui.activeGroupId', first); } catch {}
+    }
+  }, [groups, activeGroupId, persistGroups]);
 
   const activeGroup = useMemo(() => groups.find(g => g.id === activeGroupId) || groups[0], [groups, activeGroupId]);
   const activeOpenFiles = useMemo(() => activeGroup?.openFiles || [], [activeGroup]);
@@ -331,7 +491,16 @@ export function PieUIProvider({ children }: { children: React.ReactNode }) {
     closeFile,
     activateFile,
     markDirty,
+  renameActiveFile,
   getFileText: (name: string) => fileTexts[name],
+    setFileText: (name: string, text: string) => {
+      setFileTexts(prev => {
+        if (prev[name] === text) return prev;
+        // Mark file as dirty when text changes
+        markDirty(name, true);
+        return { ...prev, [name]: text };
+      });
+    },
     cursor: { line: 1, column: 1 },
     languageId: 'plaintext',
     eol: 'LF',
@@ -339,7 +508,7 @@ export function PieUIProvider({ children }: { children: React.ReactNode }) {
     showAbout,
     openAbout: () => setShowAbout(true),
     closeAbout: () => setShowAbout(false),
-  }), [activeActivity, showSidebar, showPanel, showSecondarySidebar, activityBarSide, panelPosition, viewLocations, groups, activeGroupId, showAbout, hasFolder, hasWorkspace, activeOpenFiles, activeFile, splitEditorRight, newTab, openFile, closeFile, activateFile, markDirty, rootName, fileTree, handleOpenFolder, handleCloseFolder, fileTexts]);
+  }), [activeActivity, showSidebar, showPanel, showSecondarySidebar, activityBarSide, panelPosition, viewLocations, groups, activeGroupId, showAbout, hasFolder, hasWorkspace, activeOpenFiles, activeFile, splitEditorRight, newTab, openFile, closeFile, activateFile, markDirty, renameActiveFile, rootName, fileTree, handleOpenFolder, handleCloseFolder, fileTexts]);
 
   // Attempt to restore previously authorized folder on load
   React.useEffect(() => {

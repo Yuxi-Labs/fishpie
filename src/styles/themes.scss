@@ -2,6 +2,7 @@
 :root {
 	--token-keyword: #7c3aed;   /* purple */
 	--token-type: #2563eb;      /* blue */
+	--token-primitive: #3b82f6; /* blue (lighter) */
 	--token-string: #16a34a;    /* green */
 	--token-comment: #9ca3af;   /* gray */
 	--token-tag: #dc2626;       /* red */
@@ -11,12 +12,42 @@
 	--token-scene: #0ea5e9;     /* sky */
 	--token-character: #22c55e; /* emerald */
 	--token-dialogue: #f97316;  /* orange */
+	--token-number: #14b8a6;    /* teal */
+	--token-global: #6366f1;    /* indigo */
+	--token-property: #f59e0b;  /* amber */
+	--token-attribute: #fbbf24; /* amber (light) */
+	--token-attr-value: #10b981;/* emerald */
+	--token-entity: #f59e0b;    /* amber */
+	--token-doctype: #9ca3af;   /* gray */
+	--token-codeblock: #94a3b8; /* slate */
+	--token-blockquote: #9ca3af;/* gray */
+	--token-list: #06b6d4;      /* cyan */
+	--token-link: #3b82f6;      /* blue */
+	--token-image: #ec4899;     /* pink */
+	--token-action: #84cc16;    /* lime */
+	--token-symbol: #d946ef;    /* fuchsia */
+	--token-identifier: #60a5fa;/* blue (light) */
+	--token-punctuation: #6b7280; /* gray-500 */
+	--token-operator: #f43f5e;  /* rose */
+	--token-regex: #06b6d4;     /* cyan */
+	--token-function: #22c55e;  /* green */
+	--token-class: #fb7185;     /* rose */
+	--token-selector-class: #f472b6; /* pink */
+	--token-selector-id: #22d3ee;    /* cyan */
+	--token-pseudo: #a78bfa;    /* violet */
+	--token-css-fn: #34d399;    /* emerald */
+	--token-value: #60a5fa;     /* blue */
+	--token-color: #34d399;     /* emerald */
+
+	/* Selection background for FishEditor (semi-transparent so text stays readable) */
+	--selection-bg: rgba(96, 165, 250, 0.35); /* blue-400 @35% */
 }
 
 @media (prefers-color-scheme: dark) {
 	:root {
 		--token-keyword: #a78bfa;
 		--token-type: #60a5fa;
+		--token-primitive: #93c5fd;
 		--token-string: #4ade80;
 		--token-comment: #9ca3af;
 		--token-tag: #f87171;
@@ -26,5 +57,20 @@
 		--token-scene: #38bdf8;
 		--token-character: #86efac;
 		--token-dialogue: #fdba74;
+		--token-number: #2dd4bf;
+		--token-global: #818cf8;
+		--token-property: #fbbf24;
+		--token-attribute: #fde68a;
+		--token-codeblock: #cbd5e1;
+		--token-blockquote: #9ca3af;
+		--token-list: #22d3ee;
+		--token-link: #93c5fd;
+		--token-image: #f472b6;
+		--token-action: #a3e635;
+		--token-symbol: #f0abfc;
+		--token-identifier: #93c5fd;
+		--token-punctuation: #9ca3af;
+
+	--selection-bg: rgba(30, 64, 175, 0.45); /* blue-900 @45% */
 	}
 }

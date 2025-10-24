@@ -20,6 +20,17 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Desktop layout: ensure the app consumes full viewport without bottom gap */
+html, body, #__next {
+  height: 100%;
+}
+
+/* Avoid stray page scroll; all scrolling is inside app panes */
+body {
+  margin: 0;
+  overflow: hidden;
+}
+
 /* Fine-tuning for FishEditor sizing using standard CSS (mobile-first) */
 .fish-editor {
   --fish-text-font-size: 16px;

@@ -1,0 +1,51 @@
+{
+  // Use VS Code's built-in TypeScript and never prompt to switch
+  "typescript.enablePromptUseWorkspaceTsdk": false,
+
+  // General editor behavior for better IntelliSense/snippets
+  "editor.quickSuggestions": {
+    "other": true,
+    "comments": false,
+    "strings": true
+  },
+  "editor.suggest.snippetsPreventQuickSuggestions": false,
+  "editor.snippetSuggestions": "inline",
+  "editor.hover.enabled": true,
+  "editor.linkedEditing": true,
+
+  // Linting/formatting
+  "eslint.useFlatConfig": true,
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact",
+    "mjs",
+    "cjs"
+  ],
+  // You can enable Prettier if installed by uncommenting the next two lines
+  // "editor.defaultFormatter": "esbenp.prettier-vscode",
+  // "editor.formatOnSave": true,
+
+  // File associations (map Fishpie custom types to closest VS Code languages for coloring, hover, and snippets)
+  "files.associations": {
+    "*.mjs": "javascript",
+    "*.cjs": "javascript",
+    "*.ts": "typescript",
+    "*.tsx": "typescriptreact",
+    "*.scss": "scss",
+    "*.story": "markdown",
+    "*.narrative": "markdown",
+    "*.gptp": "json"
+  },
+
+  // Tailwind CSS IntelliSense
+  "tailwindCSS.includeLanguages": {
+    "typescript": "html",
+    "typescriptreact": "html"
+  },
+
+  // Markdown quality of life
+  "markdown.preview.doubleClickToSwitchToEditor": true,
+  "markdown.updateLinksOnFileMove.enabled": "always"
+}

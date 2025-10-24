@@ -1,7 +1,7 @@
 import React from 'react';
 import type { JSX } from 'react';
 
-export type IconName = 'folder' | 'file' | 'file-plus' | 'file-tree' | 'search' | 'branch' | 'play' | 'puzzle' | 'chevron-right' | 'chevron-down' | 'gear' | 'git' | 'terminal' | 'blocks';
+export type IconName = 'folder' | 'file' | 'file-plus' | 'file-tree' | 'search' | 'branch' | 'play' | 'puzzle' | 'chevron-right' | 'chevron-down' | 'gear' | 'git' | 'terminal' | 'blocks' | 'file-css';
 
 type IconProps = {
   name: IconName;
@@ -162,6 +162,19 @@ function BlocksIcon({ size = 20, className }: { size?: number; className?: strin
   );
 }
 
+function FileCssIcon({ size = 20, className }: { size?: number; className?: string }) {
+  // Document shape + small CSS badge; uses currentColor for outline and fixed CSS blue for badge
+  return (
+    <svg {...svgProps(size, className)} aria-hidden>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      {/* CSS badge */}
+      <rect x="6" y="15" width="12" height="6" rx="1" fill="#1572B6" stroke="none" />
+      <text x="12" y="19" textAnchor="middle" fontSize="5" fontFamily="ui-monospace, Menlo, Consolas, monospace" fill="#ffffff" stroke="none">CSS</text>
+    </svg>
+  );
+}
+
 const registry: Record<IconName, (p: { size?: number; className?: string }) => JSX.Element> = {
   folder: (p) => <FolderIcon {...p} />,
   file: (p) => <FileIcon {...p} />,
@@ -177,6 +190,7 @@ const registry: Record<IconName, (p: { size?: number; className?: string }) => J
   'git': (p) => <GitIcon {...p} />,
   'terminal': (p) => <TerminalIcon {...p} />,
   'blocks': (p) => <BlocksIcon {...p} />,
+  'file-css': (p) => <FileCssIcon {...p} />,
 };
 
 export function Icon({ name, size = 20, className, title }: IconProps) {
@@ -188,4 +202,4 @@ export function Icon({ name, size = 20, className, title }: IconProps) {
   );
 }
 
-export { FolderIcon, FileIcon, FilePlusIcon, FileTreeIcon, SearchIcon, BranchIcon, PlayIcon, PuzzleIcon, ChevronRightIcon, ChevronDownIcon, GearIcon, GitIcon, TerminalIcon, BlocksIcon };
+export { FolderIcon, FileIcon, FilePlusIcon, FileTreeIcon, SearchIcon, BranchIcon, PlayIcon, PuzzleIcon, ChevronRightIcon, ChevronDownIcon, GearIcon, GitIcon, TerminalIcon, BlocksIcon, FileCssIcon };

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 495.61 431.74">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #59f77e;
+        font-family: FranklinGothic-Heavy, 'Franklin Gothic Heavy';
+        font-size: 342.4px;
+        font-weight: 800;
+      }
+
+      .cls-2 {
+        fill: #0d9b97;
+      }
+    </style>
+  </defs>
+  <rect class="cls-2" y="0" width="495.61" height="425.38" rx="5.67" ry="5.67"/>
+  <text class="cls-1" transform="translate(29.96 326.74)"><tspan x="0" y="0">N+</tspan></text>
+</svg>

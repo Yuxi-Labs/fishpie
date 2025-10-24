@@ -32,8 +32,23 @@ export class TextDocument {
     const lineText = this._lines[p.line] ?? "";
     const before = lineText.slice(0, p.column);
     const after = lineText.slice(p.column);
-    this._lines[p.line] = before + text + after;
-    return { line: p.line, column: p.column + text.length };
+    if (text.indexOf("\n") === -1) {
+      this._lines[p.line] = before + text + after;
+      return { line: p.line, column: p.column + text.length };
+    }
+    const parts = text.split("\n");
+    const first = before + parts[0];
+    const middle = parts.slice(1, -1);
+    const last = parts[parts.length - 1] + after;
+    // Replace current line with first, then insert middle lines, then last
+    this._lines[p.line] = first;
+    if (middle.length > 0) {
+      this._lines.splice(p.line + 1, 0, ...middle);
+    }
+    this._lines.splice(p.line + parts.length - 1, 0, last);
+    // Remove the old 'after' segment that was appended as part of last splice
+    // Actually not needed because we built 'last' including 'after'
+    return { line: p.line + parts.length - 1, column: parts[parts.length - 1].length };
   }
 
   insertNewline(pos: DocPos): DocPos {
@@ -98,21 +113,23 @@ export class TextDocument {
 
   replaceRange(a: DocPos, b: DocPos, text: string): DocPos {
     const { start, end } = this._normalizeRange(a, b);
-    if (start.line === end.line) {
-      const line = this._lines[start.line] ?? "";
-      const before = line.slice(0, start.column);
-      const after = line.slice(end.column);
-      this._lines[start.line] = before + text + after;
-      return { line: start.line, column: before.length + text.length };
-    }
     const first = this._lines[start.line] ?? "";
     const last = this._lines[end.line] ?? "";
     const before = first.slice(0, start.column);
     const after = last.slice(end.column);
-    const merged = before + text + after;
-    // Replace lines from start.line to end.line with merged
-    this._lines.splice(start.line, end.line - start.line + 1, merged);
-    return { line: start.line, column: before.length + text.length };
+    const parts = text.split("\n");
+    if (parts.length === 1) {
+      const merged = before + parts[0] + after;
+      this._lines.splice(start.line, end.line - start.line + 1, merged);
+      return { line: start.line, column: before.length + parts[0].length };
+    } else {
+      const head = before + parts[0];
+      const tail = parts[parts.length - 1] + after;
+      const middle = parts.slice(1, -1);
+      const replaceWith = [head, ...middle, tail];
+      this._lines.splice(start.line, end.line - start.line + 1, ...replaceWith);
+      return { line: start.line + replaceWith.length - 1, column: tail.length - after.length };
+    }
   }
 
   deleteRange(a: DocPos, b: DocPos): DocPos {

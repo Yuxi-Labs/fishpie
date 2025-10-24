@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { createRoot, Root } from 'react-dom/client';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 import { Explorer } from '@/pie/ui/Explorer';
 import { PieUIContext, type UIState, type FSNode } from '@/pie/state/ui';
 
@@ -40,7 +40,9 @@ function makeUI(overrides: Partial<UIState>): UIState {
     closeFile: noop,
     activateFile: noop,
     markDirty: noop,
+  renameActiveFile: noop,
     getFileText: () => undefined,
+  setFileText: noop as UIState['setFileText'],
     cursor: { line: 1, column: 1 },
     languageId: 'plaintext',
     eol: 'LF',
@@ -92,6 +94,21 @@ describe('Explorer (pie/ui)', () => {
   act(() => { fileRow?.click(); });
     expect(openFile).toHaveBeenCalledWith('a.txt');
     expect(activateFile).toHaveBeenCalledWith('a.txt');
+    unmount();
+  });
+
+  it('double-click also opens a file', () => {
+    const openFile = vi.fn();
+    const activateFile = vi.fn();
+    const tree: FSNode = { name: 'root', path: '', type: 'folder', children: [ { name: 'b.txt', path: 'b.txt', type: 'file' } ] };
+    const { container, unmount } = renderWithUI(makeUI({ hasFolder: true, fileTree: tree, rootName: 'root', openFolder: vi.fn(), openFile, activateFile }));
+    const fileRow = Array.from(container.querySelectorAll('span')).find(n => n.textContent === 'b.txt') as HTMLElement;
+    act(() => {
+      // Dispatch a double click event on the name span's parent row
+      fileRow?.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    });
+    expect(openFile).toHaveBeenCalledWith('b.txt');
+    expect(activateFile).toHaveBeenCalledWith('b.txt');
     unmount();
   });
 });

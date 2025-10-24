@@ -5,7 +5,11 @@ export function Breadcrumbs({ parts }: { parts: string[] }) {
       {parts.map((p, i) => (
         <div key={i} className="flex items-center gap-2">
           <span className="truncate max-w-[12ch]">{p}</span>
-          {i < parts.length - 1 ? <span className="opacity-50">&gt;</span> : null}
+          {i < parts.length - 1 ? (
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" className="opacity-50">
+              <path d="M4 2L8 6L4 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          ) : null}
         </div>
       ))}
     </div>

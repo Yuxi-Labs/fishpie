@@ -1,0 +1,15 @@
+{
+  // Recommended extensions to enable IntelliSense, hover docs, snippets, and highlighting across Fishpie languages
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "bradlc.vscode-tailwindcss",
+    "csstools.postcss",
+    "yzhang.markdown-all-in-one",
+    "stylelint.vscode-stylelint"
+  ],
+  "unwantedRecommendations": [
+    // Use built-in TS/JS support; only use Nightly if you explicitly want it
+    "ms-vscode.vscode-typescript-next"
+  ]
+}
