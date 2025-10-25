@@ -1,7 +1,7 @@
 # Fishpie Specification
 
-Status: Draft
-Last updated: 2025-10-11
+Status: Active
+Last updated: 2025-10-25
 
 ## Overview
 
@@ -42,23 +42,39 @@ The app is built with Next.js (App Router), React, and TypeScript. Styling uses 
 - Rendering: `FishEditor` is a React component that owns a `<canvas>` and paints content, tokens, caret, and selection.
   - DPR-aware sizing, consistent font metrics, simple line height.
   - Caret blink managed by a timer; repaint hooked to state changes.
+  - Syntax highlighting with token-based coloring for all languages.
 - Input model: uses native events only.
   - `beforeinput`: authoritative for text insertion/deletion when available.
-  - `compositionstart`/`compositionend`: IME support (overlay painting later).
-  - `keydown`: arrows, navigation, selection expansion, home/end, tab; printable fallback when `beforeinput` isn’t firing.
+  - `compositionstart`/`compositionend`: IME support.
+  - `keydown`: arrows, navigation, selection expansion, home/end, tab; printable fallback when `beforeinput` isn't firing.
+- Smart editing features:
+  - Auto-pairing of brackets, quotes, and tags
+  - Smart indentation on Enter (maintains and increases indent after braces/colons)
+  - Tab key respects file's indentation style (spaces vs tabs, 2 vs 4 spaces)
+  - Dirty state tracking with undo-aware comparison to original content
+  - Snippet expansion with tabstop navigation ($0, $1, $2)
 - Language tokenization: `getOrLoadLanguage(id)` returns a provider; providers can be sync or async.
 
 ### Language Layer
 
 - `LanguageProvider` interface
   - `id: string`, optional `tokenize(text)`, `complete(text, position)`, `hover(text, position)`.
+- Built-in IntelliSense System
+  - Comprehensive context-aware completions and hover documentation
+  - 200+ completion items across all languages
+  - Works offline without external LSP servers
+  - Smart filtering and method chaining detection
+  - See "Language Awareness & IntelliSense" section in `docs/fish-editor-features.md`
 - Registry and mapping
-  - Built-ins: plaintext, markdown, html, css, javascript, typescript, story.
+  - Built-ins: plaintext, markdown, html, css, scss, javascript, typescript, story.
   - Optional adapters loaded on demand: `narrative`, `gptp`.
   - Filename → language id mapping via `languageForFilename(filename)`.
-- Optional adapters
-  - Narrative: soft import of `@yuxilabs/storymode-core` when present; falls back to regex tokenization.
-  - GPTP: light JSON-like tokenization, trivial completion/hover.
+- Language-specific features
+  - JavaScript/TypeScript: Keywords, global objects, built-in methods, snippets
+  - HTML: Tags, attributes, auto-closing
+  - CSS/SCSS: Properties, at-rules, value suggestions
+  - Markdown: Formatting, links, tables, code blocks
+  - Story: Scene markers, dialogue, transitions
 
 ### Minimal LSP-like API
 
@@ -80,9 +96,9 @@ The app is built with Next.js (App Router), React, and TypeScript. Styling uses 
 
 - Primary Surface (Editors)
   - Editor groups (splits): multiple side-by-side groups, each with its own tabs and active file.
-  - Tabs per group with close button, dirty indicator, and add `Untitled-N` action.
+  - Tabs per group with close button, prominent dirty indicator (blue circle), and context menu.
   - Breadcrumbs show project and current file path when active.
-  - Empty state: if no file open, show a simple hint; no fake tabs.
+  - Tab row always visible for consistency.
 
 - Sidebars and Panels
   - Activity Bar: left or right dock; buttons for Explorer, Search, Source, Run, Extensions, plus settings and toggle panel.
@@ -100,7 +116,7 @@ The app is built with Next.js (App Router), React, and TypeScript. Styling uses 
 
 - Status Bar
   - Displays Ln/Col, EOL, encoding, language id.
-  - Currently populated from UI state; to be wired to the active Fish editor.
+  - Wired to active Fish editor state.
 
 ## Layout Rules
 
@@ -135,16 +151,26 @@ The app is built with Next.js (App Router), React, and TypeScript. Styling uses 
 
 ## Future Work
 
-- Wire Status Bar line/column and language id directly to Fish editor state.
-- Command registry and keybindings loader (e.g., add a keyboard shortcut for “Split Editor Right”).
-- Editor group management: close-empty-group behavior, drag-to-reorder groups, “Open to Side” from Explorer.
-- Panel/tab persistence and transitions.
-- Richer Outline view and view movement via drag handles.
+- Vertical scrolling improvements (viewport culling, always scroll to last line)
+- Undo/redo system with history management
+- Find/replace functionality
+- Multi-cursor editing
+- Code folding
+- Command registry and keybindings loader
+- Editor group management: close-empty-group behavior, drag-to-reorder groups
+- Panel/tab drag-and-drop reordering
+- Richer Outline view and view movement via drag handles
+- File operations in Explorer (create, delete, rename, move)
+- Workspace-wide search
+- Git integration (status, commit, push/pull)
+- Integrated terminal (WebSocket or WASM runtime)
+- Extension system with marketplace
 
 ---
 
-This spec describes the direction implemented in the current codebase: persistent customizable layout, panel docking, secondary sidebar, command palette, local SVG icon system, and canvas-native editing.
+This spec describes the core architecture implemented in the current codebase: persistent customizable layout, panel docking, secondary sidebar, command palette, local SVG icon system, canvas-native editing with smart features, and comprehensive IntelliSense.
 
-## Related Specs
+## Related Documentation
 
-- Tabs UX: see `docs/ui-tabs-spec.md` for the authoritative tabs behavior and acceptance criteria.
+- **Fish Editor Features**: `docs/fish-editor-features.md` - Comprehensive feature checklist for the editor core, including detailed IntelliSense documentation
+- **Pie IDE Features**: `docs/pie-ide-features.md` - Comprehensive feature checklist for the IDE shell

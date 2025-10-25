@@ -16,6 +16,7 @@ import { PieUIProvider, usePieUI } from "@/pie/state/ui";
 import CommandPalette from "@/pie/ui/CommandPalette";
 import Welcome from "@/pie/ui/Welcome";
 import AboutDialog from "@/pie/ui/AboutDialog";
+import { ContextMenu, useContextMenu } from "@/pie/ui/ContextMenu";
 
 export type PieLayoutProps = PropsWithChildren<{
   projectId?: string;
@@ -23,10 +24,35 @@ export type PieLayoutProps = PropsWithChildren<{
 
 function Chrome({ children, projectId }: PieLayoutProps) {
   const ui = usePieUI();
+  const { menu, showContextMenu, hideContextMenu } = useContextMenu();
   const activityLeft = ui.activityBarSide === 'left';
   const inWelcome = !ui.hasWorkspace;
   const hasSecondary = ui.showSecondarySidebar;
   const hasRightPanel = ui.showPanel && ui.panelPosition === 'right';
+  
+  // Prevent default context menu globally
+  React.useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      
+      // Build context menu items based on context
+      const items = [
+        { type: 'item' as const, label: 'Cut', shortcut: 'Ctrl+X', onSelect: () => document.execCommand('cut'), disabled: true },
+        { type: 'item' as const, label: 'Copy', shortcut: 'Ctrl+C', onSelect: () => document.execCommand('copy'), disabled: true },
+        { type: 'item' as const, label: 'Paste', shortcut: 'Ctrl+V', onSelect: () => document.execCommand('paste'), disabled: true },
+        { type: 'separator' as const },
+        { type: 'item' as const, label: 'Command Palette', shortcut: 'Ctrl+Shift+P', onSelect: () => {} },
+        { type: 'separator' as const },
+        { type: 'item' as const, label: 'Open Folder', onSelect: () => ui.openFolder() },
+        { type: 'item' as const, label: 'New File', shortcut: 'Ctrl+N', onSelect: () => ui.newTab() },
+      ];
+      
+      showContextMenu(e.clientX, e.clientY, items);
+    };
+    
+    document.addEventListener('contextmenu', handleContextMenu);
+    return () => document.removeEventListener('contextmenu', handleContextMenu);
+  }, [showContextMenu, ui]);
   // const activeGroup = ui.groups.find(g => g.id === ui.activeGroupId) ?? ui.groups[0];
   // const hasTabs = !inWelcome && !!(activeGroup && activeGroup.openFiles.length > 0);
 
@@ -183,6 +209,7 @@ function Chrome({ children, projectId }: PieLayoutProps) {
     </div>
     <CommandPalette />
     <AboutDialog />
+    {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={hideContextMenu} />}
     </>
   );
 }

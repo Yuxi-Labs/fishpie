@@ -25,7 +25,7 @@ export function StatusBar({}: { projectId?: string }) {
   return (
     <div className="flex items-center justify-between px-3 py-1.5 border-t border-black/10 dark:border-white/10 text-xs bg-black/[.02] dark:bg-white/[.02] min-h-[28px]">
       <div className="flex items-center gap-3">
-        {hasActiveFile ? (
+        {hasActiveFile && (
           <>
             <span>Ln {ui.cursor.line}, Col {ui.cursor.column}</span>
             <span>{ui.eol}</span>
@@ -35,12 +35,18 @@ export function StatusBar({}: { projectId?: string }) {
               {langDisplayName[langId || "plaintext"] || "Plain Text"}
             </span>
           </>
-        ) : (
-          <span className="opacity-50">No file open</span>
         )}
       </div>
       <div className="flex items-center gap-3 opacity-70">
-        <span>Fishpie</span>
+        {/* Editor feature indicators */}
+        {hasActiveFile && (
+          <>
+            {ui.wordWrapEnabled && <span title="Word Wrap Enabled">↩ Wrap</span>}
+            {ui.multiCursorCount > 1 && (
+              <span title="Multiple Cursors">{ui.multiCursorCount} cursors</span>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

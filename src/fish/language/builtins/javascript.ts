@@ -65,35 +65,104 @@ export const javascript: LanguageProvider = {
     const lines = text.split(/\n/);
     for (let line = 0; line < lines.length; line++) {
       const l = lines[line];
+      
+      // Track positions to avoid overlapping tokens
+      const covered = new Set<number>();
+      
+      // Template literals (backticks)
+      let m: RegExpExecArray | null;
+      const templateRegex = /`(?:[^`\\]|\\.)*`/g;
+      while ((m = templateRegex.exec(l))) {
+        tokens.push({ text: m[0], type: "string", range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
+        for (let i = m.index; i < m.index + m[0].length; i++) covered.add(i);
+      }
+      
       // comments
       const commentIdx = l.indexOf("//");
       if (commentIdx >= 0) {
         tokens.push({ text: l.slice(commentIdx), type: "comment", range: { start: { line, column: commentIdx }, end: { line, column: l.length } } });
+        for (let i = commentIdx; i < l.length; i++) covered.add(i);
       }
+      
       // block comments (single-line scope)
-      let m: RegExpExecArray | null;
       const block = /\/\*.*?\*\//g;
       while ((m = block.exec(l))) {
+        if (covered.has(m.index)) continue;
         tokens.push({ text: m[0], type: "comment", range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
+        for (let i = m.index; i < m.index + m[0].length; i++) covered.add(i);
       }
-      // strings (very naive)
-      const stringRegex = /(["'`])(?:\\.|(?!\1).)*\1/g;
+      
+      // strings (better handling with escape sequences)
+      const stringRegex = /(["'])(?:\\.|(?!\1)[^\n])*\1/g;
       while ((m = stringRegex.exec(l))) {
+        if (covered.has(m.index)) continue;
         tokens.push({ text: m[0], type: "string", range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
+        for (let i = m.index; i < m.index + m[0].length; i++) covered.add(i);
       }
+      
       // regex literals (simple heuristic: /.../ with flags)
       const regexRe = /\/(?:\\.|[^\/\n])+\/[gimsuy]*/g;
       while ((m = regexRe.exec(l))) {
-        tokens.push({ text: m[0], type: "regex", range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
+        if (covered.has(m.index)) continue;
+        // Avoid false positives (division operators) by checking context
+        const before = l.substring(0, m.index).trim();
+        if (before.endsWith('=') || before.endsWith('(') || before.endsWith(',') || before.endsWith(':') || before.endsWith('return')) {
+          tokens.push({ text: m[0], type: "regex", range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
+          for (let i = m.index; i < m.index + m[0].length; i++) covered.add(i);
+        }
       }
-      // numbers
-      const numberRegex = /\b\d+\.?\d*\b/g;
+      
+      // numbers (including hex, binary, octal, scientific notation)
+      const numberRegex = /\b(?:0[xX][0-9a-fA-F]+|0[bB][01]+|0[oO][0-7]+|\d+\.?\d*(?:[eE][+-]?\d+)?)\b/g;
       while ((m = numberRegex.exec(l))) {
+        if (covered.has(m.index)) continue;
         tokens.push({ text: m[0], type: "number", range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
+        for (let i = m.index; i < m.index + m[0].length; i++) covered.add(i);
       }
+      
+      // Function and class declarations (before general keywords to get proper highlighting)
+      const fnDecl = /\bfunction\s+([a-zA-Z_$][\w$]*)/g;
+      while ((m = fnDecl.exec(l))) {
+        if (covered.has(m.index)) continue;
+        const name = m[1];
+        const start = m.index + m[0].indexOf(name);
+        tokens.push({ text: name, type: "function-name", range: { start: { line, column: start }, end: { line, column: start + name.length } } });
+        for (let i = start; i < start + name.length; i++) covered.add(i);
+      }
+      
+      const clsDecl = /\bclass\s+([a-zA-Z_$][\w$]*)/g;
+      while ((m = clsDecl.exec(l))) {
+        if (covered.has(m.index)) continue;
+        const name = m[1];
+        const start = m.index + m[0].indexOf(name);
+        tokens.push({ text: name, type: "class-name", range: { start: { line, column: start }, end: { line, column: start + name.length } } });
+        for (let i = start; i < start + name.length; i++) covered.add(i);
+      }
+      
+      // Method calls (identifier followed by parenthesis)
+      const methodCall = /\b([a-zA-Z_$][\w$]*)\s*\(/g;
+      while ((m = methodCall.exec(l))) {
+        if (covered.has(m.index)) continue;
+        const name = m[1];
+        if (!jsKeywords.has(name)) {
+          tokens.push({ text: name, type: "function", range: { start: { line, column: m.index }, end: { line, column: m.index + name.length } } });
+          for (let i = m.index; i < m.index + name.length; i++) covered.add(i);
+        }
+      }
+      
+      // Property access (dot notation)
+      const propAccess = /\.([a-zA-Z_$][\w$]*)/g;
+      while ((m = propAccess.exec(l))) {
+        if (covered.has(m.index + 1)) continue;
+        const name = m[1];
+        tokens.push({ text: name, type: "property", range: { start: { line, column: m.index + 1 }, end: { line, column: m.index + 1 + name.length } } });
+        for (let i = m.index + 1; i < m.index + 1 + name.length; i++) covered.add(i);
+      }
+      
       // keywords and identifiers
       const word = /\b[a-zA-Z_$][\w$]*\b/g;
       while ((m = word.exec(l))) {
+        if (covered.has(m.index)) continue;
         if (jsKeywords.has(m[0])) {
           tokens.push({ text: m[0], type: "keyword", range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
         } else if (jsGlobalObjects.has(m[0])) {
@@ -101,24 +170,15 @@ export const javascript: LanguageProvider = {
         } else {
           tokens.push({ text: m[0], type: "identifier", range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
         }
+        for (let i = m.index; i < m.index + m[0].length; i++) covered.add(i);
       }
-      // function and class declarations
-      const fnDecl = /\bfunction\s+([a-zA-Z_$][\w$]*)/g;
-      while ((m = fnDecl.exec(l))) {
-        const name = m[1];
-        const start = m.index + m[0].indexOf(name);
-        tokens.push({ text: name, type: "function-name", range: { start: { line, column: start }, end: { line, column: start + name.length } } });
-      }
-      const clsDecl = /\bclass\s+([a-zA-Z_$][\w$]*)/g;
-      while ((m = clsDecl.exec(l))) {
-        const name = m[1];
-        const start = m.index + m[0].indexOf(name);
-        tokens.push({ text: name, type: "class-name", range: { start: { line, column: start }, end: { line, column: start + name.length } } });
-      }
-      // operators and punctuation
-      const op = /(===|!==|==|!=|=>|<=|>=|\+\+|--|&&|\|\||[+\-*/%?:=<>!.,;()[\]{}])/g;
+      
+      // operators and punctuation (more comprehensive)
+      const op = /(===|!==|==|!=|=>|<=|>=|\+\+|--|&&|\|\||[+\-*\/%?:=<>!.,;()[\]{}])/g;
       while ((m = op.exec(l))) {
+        if (covered.has(m.index)) continue;
         tokens.push({ text: m[0], type: "operator", range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
+        for (let i = m.index; i < m.index + m[0].length; i++) covered.add(i);
       }
     }
     return tokens;

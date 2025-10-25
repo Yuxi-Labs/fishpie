@@ -1,6 +1,6 @@
-@import "tailwindcss";
-@import "./themes.scss";
-@import "./pie.scss";
+@use "tailwindcss";
+@use "./themes.scss";
+@use "./pie.scss";
 
 :root {
   --background: #ffffff;

@@ -45,53 +45,125 @@ export const css: LanguageProvider = {
   tokenize(text: string): Token[] {
     const tokens: Token[] = [];
     const lines = text.split(/\n/);
+    
     for (let line = 0; line < lines.length; line++) {
       const l = lines[line];
-      // comments
+      const covered = new Set<number>();
       let m: RegExpExecArray | null;
+      
+      // Comments (highest priority)
       const comment = /\/\*.*?\*\//g;
       while ((m = comment.exec(l))) {
         tokens.push({ text: m[0], type: "comment", range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
+        for (let i = m.index; i < m.index + m[0].length; i++) covered.add(i);
       }
-      // at-rules
+      
+      // Strings in CSS (for content, url, etc.)
+      const stringRegex = /(["'])(?:\\.|(?!\1)[^\n])*?\1/g;
+      while ((m = stringRegex.exec(l))) {
+        if (covered.has(m.index)) continue;
+        tokens.push({ text: m[0], type: "string", range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
+        for (let i = m.index; i < m.index + m[0].length; i++) covered.add(i);
+      }
+      
+      // At-rules (@media, @import, @keyframes, etc.)
       const at = /@[a-z-]+/g;
       while ((m = at.exec(l))) {
+        if (covered.has(m.index)) continue;
         tokens.push({ text: m[0], type: "at-rule", range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
+        for (let i = m.index; i < m.index + m[0].length; i++) covered.add(i);
       }
-      // properties (simplified: word followed by colon)
+      
+      // CSS properties (word followed by colon)
       const prop = /\b([a-z-]+)\s*:/g;
       while ((m = prop.exec(l))) {
+        if (covered.has(m.index)) continue;
         tokens.push({ text: m[1], type: "property", range: { start: { line, column: m.index }, end: { line, column: m.index + m[1].length } } });
+        for (let i = m.index; i < m.index + m[1].length; i++) covered.add(i);
       }
-      // selectors: class and id
+      
+      // Class selectors (.classname)
       const cls = /\.[_a-zA-Z][_a-zA-Z0-9-]*/g;
       while ((m = cls.exec(l))) {
+        if (covered.has(m.index)) continue;
         tokens.push({ text: m[0], type: "selector-class", range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
+        for (let i = m.index; i < m.index + m[0].length; i++) covered.add(i);
       }
+      
+      // ID selectors (#idname)
       const ident = /#[_a-zA-Z][_a-zA-Z0-9-]*/g;
       while ((m = ident.exec(l))) {
-        tokens.push({ text: m[0], type: "selector-id", range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
+        if (covered.has(m.index)) continue;
+        // Skip hex colors
+        if (!/^#[0-9a-fA-F]{3,8}$/.test(m[0])) {
+          tokens.push({ text: m[0], type: "selector-id", range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
+          for (let i = m.index; i < m.index + m[0].length; i++) covered.add(i);
+        }
       }
-      // pseudo classes/elements
-      const pseudo = /::?[a-z-]+/g;
-      while ((m = pseudo.exec(l))) {
-        tokens.push({ text: m[0], type: "pseudo", range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
-      }
-      // functions like rgba(, url(, calc(
-      const func = /[a-z-]+\s*\(/g;
-      while ((m = func.exec(l))) {
-        const name = m[0].replace(/\(/, "");
-        tokens.push({ text: name.trim(), type: "function", range: { start: { line, column: m.index }, end: { line, column: m.index + name.length } } });
-      }
-      // numeric values with units
-      const numUnit = /\b\d+(?:\.\d+)?(px|em|rem|vh|vw|%|deg|s|ms)\b/g;
-      while ((m = numUnit.exec(l))) {
-        tokens.push({ text: m[0], type: "value", range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
-      }
-      // hex colors
+      
+      // Hex colors (#fff, #ffffff, etc.)
       const hex = /#[0-9a-fA-F]{3,8}\b/g;
       while ((m = hex.exec(l))) {
+        if (covered.has(m.index)) continue;
         tokens.push({ text: m[0], type: "color", range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
+        for (let i = m.index; i < m.index + m[0].length; i++) covered.add(i);
+      }
+      
+      // Pseudo classes/elements (::before, :hover, etc.)
+      const pseudo = /::?[a-z-]+/g;
+      while ((m = pseudo.exec(l))) {
+        if (covered.has(m.index)) continue;
+        tokens.push({ text: m[0], type: "pseudo", range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
+        for (let i = m.index; i < m.index + m[0].length; i++) covered.add(i);
+      }
+      
+      // CSS functions (rgba, url, calc, var, etc.)
+      const func = /\b([a-z-]+)\s*\(/g;
+      while ((m = func.exec(l))) {
+        if (covered.has(m.index)) continue;
+        const name = m[1];
+        tokens.push({ text: name, type: "function", range: { start: { line, column: m.index }, end: { line, column: m.index + name.length } } });
+        for (let i = m.index; i < m.index + name.length; i++) covered.add(i);
+      }
+      
+      // Important flag
+      const important = /!important\b/g;
+      while ((m = important.exec(l))) {
+        if (covered.has(m.index)) continue;
+        tokens.push({ text: m[0], type: "keyword", range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
+        for (let i = m.index; i < m.index + m[0].length; i++) covered.add(i);
+      }
+      
+      // Numeric values with units (100px, 2em, 50%, 90deg, etc.)
+      const numUnit = /\b-?\d+(?:\.\d+)?(px|em|rem|vh|vw|vmin|vmax|%|deg|rad|grad|turn|s|ms|fr|ch|ex)\b/g;
+      while ((m = numUnit.exec(l))) {
+        if (covered.has(m.index)) continue;
+        tokens.push({ text: m[0], type: "value", range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
+        for (let i = m.index; i < m.index + m[0].length; i++) covered.add(i);
+      }
+      
+      // Plain numbers (for line-height, z-index, opacity, etc.)
+      const plainNum = /\b-?\d+(?:\.\d+)?\b/g;
+      while ((m = plainNum.exec(l))) {
+        if (covered.has(m.index)) continue;
+        tokens.push({ text: m[0], type: "number", range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
+        for (let i = m.index; i < m.index + m[0].length; i++) covered.add(i);
+      }
+      
+      // CSS keywords (auto, none, inherit, initial, etc.)
+      const keywords = /\b(auto|none|inherit|initial|unset|revert|normal|bold|italic|block|inline|flex|grid|absolute|relative|fixed|sticky|transparent|hidden|visible|scroll|pointer|default)\b/g;
+      while ((m = keywords.exec(l))) {
+        if (covered.has(m.index)) continue;
+        tokens.push({ text: m[0], type: "keyword", range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
+        for (let i = m.index; i < m.index + m[0].length; i++) covered.add(i);
+      }
+      
+      // Punctuation
+      const punct = /[{}:;,()[\]]/g;
+      while ((m = punct.exec(l))) {
+        if (covered.has(m.index)) continue;
+        tokens.push({ text: m[0], type: "punctuation", range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
+        for (let i = m.index; i < m.index + m[0].length; i++) covered.add(i);
       }
     }
     return tokens;

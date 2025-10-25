@@ -53,6 +53,8 @@ export type UIState = {
   markDirty: (name: string, dirty: boolean) => void;
   // Rename the active file (updates tabs, active name, and cached content)
   renameActiveFile: (newName: string) => void;
+  // Update original file text after save
+  updateOriginalText: (name: string, text: string) => void;
 
   // File text cache accessor
   getFileText: (name: string) => string | undefined;
@@ -63,6 +65,14 @@ export type UIState = {
   languageId: string;
   eol: 'LF' | 'CRLF';
   encoding: 'UTF-8' | 'UTF-16LE';
+
+  // Editor preferences
+  wordWrapEnabled: boolean;
+  toggleWordWrap: () => void;
+  bracketMatchingEnabled: boolean;
+  toggleBracketMatching: () => void;
+  multiCursorCount: number;
+  setMultiCursorCount: (count: number) => void;
 
   // About dialog
   showAbout: boolean;
@@ -122,6 +132,15 @@ export function PieUIProvider({ children }: { children: React.ReactNode }) {
   // In-memory FS handles and loaded texts for current workspace
   const fileHandlesRef = React.useRef<Map<string, FileSystemFileHandle>>(new Map());
   const [fileTexts, setFileTexts] = useState<Record<string, string>>({});
+  const [originalFileTexts, setOriginalFileTexts] = useState<Record<string, string>>({});
+
+  // Editor preferences
+  const [wordWrapEnabled, setWordWrapEnabled] = useState<boolean>(() => localStorage.getItem('ui.wordWrapEnabled') === 'true');
+  const [bracketMatchingEnabled, setBracketMatchingEnabled] = useState<boolean>(() => {
+    const v = localStorage.getItem('ui.bracketMatchingEnabled');
+    return v !== 'false'; // enabled by default
+  });
+  const [multiCursorCount, setMultiCursorCount] = useState<number>(1);
 
   // Load persisted file texts on startup
   React.useEffect(() => {
@@ -145,12 +164,6 @@ export function PieUIProvider({ children }: { children: React.ReactNode }) {
     setGroups(safe);
     try { localStorage.setItem('ui.groups', JSON.stringify(safe)); } catch {}
   }, []);
-
-  const getGroupIndex = useCallback((groupId?: string) => {
-    if (!groups || groups.length === 0) return 0;
-    const idx = groups.findIndex(g => g.id === (groupId || activeGroupId));
-    return idx === -1 ? 0 : idx;
-  }, [groups, activeGroupId]);
 
   // Generate a fresh untitled name and advance the sequence
   const nextUntitledName = useCallback(() => {
@@ -242,13 +255,15 @@ export function PieUIProvider({ children }: { children: React.ReactNode }) {
             const f = await fh.getFile();
             const txt = await f.text();
             setFileTexts(prev => ({ ...prev, [name]: txt }));
+            // Store original content when file is first opened
+            setOriginalFileTexts(prev => ({ ...prev, [name]: txt }));
           }
         }
       } catch (e) {
         console.warn('Failed to read file', name, e);
       }
     })();
-  }, [groups, getGroupIndex, fileTexts, persistGroups]);
+  }, [fileTexts, activeGroupId, setActiveGroupId]);
 
   const closeFile = useCallback((name: string, groupId?: string) => {
     setGroups(currentGroups => {
@@ -299,7 +314,7 @@ export function PieUIProvider({ children }: { children: React.ReactNode }) {
       try { localStorage.setItem('ui.groups', JSON.stringify(next)); } catch {}
       return next;
     });
-  }, [activeGroupId]);
+  }, [activeGroupId, setActiveGroupId]);
 
   const activateFile = useCallback((name: string, groupId?: string) => {
     setGroups(currentGroups => {
@@ -492,12 +507,27 @@ export function PieUIProvider({ children }: { children: React.ReactNode }) {
     activateFile,
     markDirty,
   renameActiveFile,
+  updateOriginalText: (name: string, text: string) => {
+    setOriginalFileTexts(prev => ({ ...prev, [name]: text }));
+    // When updating original text (after save), clear dirty state
+    markDirty(name, false);
+  },
   getFileText: (name: string) => fileTexts[name],
     setFileText: (name: string, text: string) => {
       setFileTexts(prev => {
         if (prev[name] === text) return prev;
-        // Mark file as dirty when text changes
-        markDirty(name, true);
+        // Check if text matches original - if so, clear dirty state
+        const original = originalFileTexts[name];
+        if (original !== undefined) {
+          if (text === original) {
+            markDirty(name, false);
+          } else {
+            markDirty(name, true);
+          }
+        } else {
+          // If no original exists yet, set it now and don't mark as dirty
+          setOriginalFileTexts(prevOrig => ({ ...prevOrig, [name]: text }));
+        }
         return { ...prev, [name]: text };
       });
     },
@@ -505,10 +535,28 @@ export function PieUIProvider({ children }: { children: React.ReactNode }) {
     languageId: 'plaintext',
     eol: 'LF',
     encoding: 'UTF-8',
+    wordWrapEnabled,
+    toggleWordWrap: () => {
+      setWordWrapEnabled(v => {
+        const next = !v;
+        localStorage.setItem('ui.wordWrapEnabled', String(next));
+        return next;
+      });
+    },
+    bracketMatchingEnabled,
+    toggleBracketMatching: () => {
+      setBracketMatchingEnabled(v => {
+        const next = !v;
+        localStorage.setItem('ui.bracketMatchingEnabled', String(next));
+        return next;
+      });
+    },
+    multiCursorCount,
+    setMultiCursorCount,
     showAbout,
     openAbout: () => setShowAbout(true),
     closeAbout: () => setShowAbout(false),
-  }), [activeActivity, showSidebar, showPanel, showSecondarySidebar, activityBarSide, panelPosition, viewLocations, groups, activeGroupId, showAbout, hasFolder, hasWorkspace, activeOpenFiles, activeFile, splitEditorRight, newTab, openFile, closeFile, activateFile, markDirty, renameActiveFile, rootName, fileTree, handleOpenFolder, handleCloseFolder, fileTexts]);
+  }), [activeActivity, showSidebar, showPanel, showSecondarySidebar, activityBarSide, panelPosition, viewLocations, groups, activeGroupId, showAbout, hasFolder, hasWorkspace, activeOpenFiles, activeFile, splitEditorRight, newTab, openFile, closeFile, activateFile, markDirty, renameActiveFile, rootName, fileTree, handleOpenFolder, handleCloseFolder, fileTexts, originalFileTexts, wordWrapEnabled, bracketMatchingEnabled, multiCursorCount]);
 
   // Attempt to restore previously authorized folder on load
   React.useEffect(() => {

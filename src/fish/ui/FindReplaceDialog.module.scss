@@ -1,0 +1,191 @@
+.findReplaceDialog {
+  position: absolute;
+  top: 50px;
+  right: 20px;
+  z-index: 1000;
+  width: 400px;
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-widget-border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  font-family: var(--vscode-font-family);
+  font-size: 13px;
+  user-select: none;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  background: var(--vscode-editorWidget-background);
+  border-bottom: 1px solid var(--vscode-widget-border);
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.tab {
+  padding: 4px 12px;
+  background: transparent;
+  border: none;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 12px;
+  transition: background-color 0.15s;
+
+  &:hover {
+    background: var(--vscode-toolbar-hoverBackground);
+  }
+
+  &.active {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+  }
+}
+
+.closeButton {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  border-radius: 3px;
+  transition: background-color 0.15s;
+
+  &:hover {
+    background: var(--vscode-toolbar-hoverBackground);
+  }
+}
+
+.content {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inputRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.input {
+  flex: 1;
+  padding: 6px 8px;
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border);
+  color: var(--vscode-input-foreground);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 13px;
+
+  &:focus {
+    outline: none;
+    border-color: var(--vscode-focusBorder);
+    box-shadow: 0 0 0 1px var(--vscode-focusBorder);
+  }
+
+  &::placeholder {
+    color: var(--vscode-input-placeholderForeground);
+  }
+}
+
+.matchCounter {
+  min-width: 80px;
+  text-align: right;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.options {
+  display: flex;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.optionButton {
+  width: 32px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--vscode-button-secondaryBackground);
+  border: 1px solid transparent;
+  color: var(--vscode-button-secondaryForeground);
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.15s;
+
+  &:hover {
+    background: var(--vscode-button-secondaryHoverBackground);
+  }
+
+  &.active {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border-color: var(--vscode-button-border);
+  }
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.navigationButtons {
+  display: flex;
+  gap: 4px;
+}
+
+.replaceButtons {
+  display: flex;
+  gap: 4px;
+}
+
+.button {
+  flex: 1;
+  padding: 6px 12px;
+  background: var(--vscode-button-secondaryBackground);
+  border: 1px solid transparent;
+  color: var(--vscode-button-secondaryForeground);
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 12px;
+  transition: all 0.15s;
+
+  &:hover:not(:disabled) {
+    background: var(--vscode-button-secondaryHoverBackground);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// Dark theme adjustments
+@media (prefers-color-scheme: dark) {
+  .findReplaceDialog {
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+  }
+}

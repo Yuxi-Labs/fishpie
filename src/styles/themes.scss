@@ -39,8 +39,8 @@
 	--token-value: #60a5fa;     /* blue */
 	--token-color: #34d399;     /* emerald */
 
-	/* Selection background for FishEditor (semi-transparent so text stays readable) */
-	--selection-bg: rgba(96, 165, 250, 0.35); /* blue-400 @35% */
+	/* Selection background for FishEditor (darker, more opaque) */
+	--selection-bg: rgba(75, 85, 99, 0.85); /* gray-600 @85% - much darker gray, nearly opaque */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -71,6 +71,6 @@
 		--token-identifier: #93c5fd;
 		--token-punctuation: #9ca3af;
 
-	--selection-bg: rgba(30, 64, 175, 0.45); /* blue-900 @45% */
+	--selection-bg: rgba(51, 65, 85, 0.85); /* slate-700 @85% for dark mode - much darker, nearly opaque */
 	}
 }

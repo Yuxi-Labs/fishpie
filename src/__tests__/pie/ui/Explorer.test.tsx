@@ -41,6 +41,7 @@ function makeUI(overrides: Partial<UIState>): UIState {
     activateFile: noop,
     markDirty: noop,
   renameActiveFile: noop,
+    updateOriginalText: noop as UIState['updateOriginalText'],
     getFileText: () => undefined,
   setFileText: noop as UIState['setFileText'],
     cursor: { line: 1, column: 1 },
@@ -50,6 +51,12 @@ function makeUI(overrides: Partial<UIState>): UIState {
     showAbout: false,
     openAbout: noop,
     closeAbout: noop,
+    wordWrapEnabled: false,
+    toggleWordWrap: noop,
+    bracketMatchingEnabled: true,
+    toggleBracketMatching: noop,
+    multiCursorCount: 1,
+    setMultiCursorCount: noop,
   };
   return { ...base, ...overrides };
 }

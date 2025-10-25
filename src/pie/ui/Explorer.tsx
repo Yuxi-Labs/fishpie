@@ -23,7 +23,8 @@ export function Explorer() {
   const ROOT_KEY = "__root__";
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set([ROOT_KEY]));
   const [selected, setSelected] = useState<string | null>(null);
-  const [hasKeyboardFocus, setHasKeyboardFocus] = useState(false);
+  // Future: Track keyboard focus for accessibility features
+  // const [hasKeyboardFocus, setHasKeyboardFocus] = useState(false);
 
   const toggle = (k: string) => {
     setExpanded(prev => {
@@ -132,9 +133,13 @@ export function Explorer() {
               {fileIconFor(node.name)}
             </>
           )}
-          <span className="truncate flex items-center gap-1">
+          <span className="truncate flex items-center gap-1.5">
             {node.name}
-            {isDirty && <span className="text-amber-500 text-base leading-none">•</span>}
+            {isDirty && (
+              <svg width="8" height="8" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="4" cy="4" r="3" fill="currentColor" className="text-blue-500" />
+              </svg>
+            )}
           </span>
         </div>
         {isFolder && isOpen && node.children && (
@@ -178,8 +183,6 @@ export function Explorer() {
     <div
       className="text-xs"
       tabIndex={0}
-      onFocus={() => setHasKeyboardFocus(true)}
-      onBlur={() => setHasKeyboardFocus(false)}
       onKeyDown={(e) => {
         if (!tree) return;
         const idx = selected ? visibleList.findIndex(v => v.key === selected) : -1;

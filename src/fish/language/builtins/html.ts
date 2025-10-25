@@ -60,53 +60,99 @@ export const html: LanguageProvider = {
   id: "html",
   tokenize(text: string): Token[] {
     const tokens: Token[] = [];
-    const tag = /<\/?[a-zA-Z][^>]*>/g;
-  let m: RegExpExecArray | null;
-  const lines = text.split(/\n/);
+    const lines = text.split(/\n/);
+    
     for (let line = 0; line < lines.length; line++) {
       const l = lines[line];
-      tag.lastIndex = 0;
-      while ((m = tag.exec(l))) {
-        tokens.push({
-          text: m[0],
-          type: "tag",
-          range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } },
-        });
-      }
-      // comments
+      const covered = new Set<number>();
+      let m: RegExpExecArray | null;
+      
+      // HTML comments (highest priority)
       const cmt = /<!--.*?-->/g;
       while ((m = cmt.exec(l))) {
         tokens.push({ text: m[0], type: 'comment', range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
+        for (let i = m.index; i < m.index + m[0].length; i++) covered.add(i);
       }
-      // doctype
+      
+      // DOCTYPE declaration
       const doc = /<!DOCTYPE\s+[^>]+>/ig;
       while ((m = doc.exec(l))) {
+        if (covered.has(m.index)) continue;
         tokens.push({ text: m[0], type: 'doctype', range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
+        for (let i = m.index; i < m.index + m[0].length; i++) covered.add(i);
       }
-      // Attribute names
-      const attrRegex = /\b([a-zA-Z-]+)=/g;
-      while ((m = attrRegex.exec(l))) {
+      
+      // Complete tags with better parsing
+      const tagRegex = /<\/?([a-zA-Z][a-zA-Z0-9-]*)/g;
+      while ((m = tagRegex.exec(l))) {
+        if (covered.has(m.index)) continue;
+        const tagName = m[1];
         tokens.push({
-          text: m[1],
-          type: "attribute",
-          range: { start: { line, column: m.index }, end: { line, column: m.index + m[1].length } },
+          text: tagName,
+          type: "tag",
+          range: { start: { line, column: m.index + 1 + (m[0].startsWith('</') ? 1 : 0) }, end: { line, column: m.index + 1 + (m[0].startsWith('</') ? 1 : 0) + tagName.length } },
         });
+        // Mark < and </ as punctuation
+        tokens.push({
+          text: m[0].startsWith('</') ? '</' : '<',
+          type: "punctuation",
+          range: { start: { line, column: m.index }, end: { line, column: m.index + (m[0].startsWith('</') ? 2 : 1) } },
+        });
+        for (let i = m.index; i < m.index + m[0].length; i++) covered.add(i);
       }
-      // Attribute values in quotes
-      const attrVal = /=\s*(["'])(.*?)\1/g;
+      
+      // Closing > and />
+      const closeBracket = /\/?>(?![^<]*<)/g;
+      while ((m = closeBracket.exec(l))) {
+        if (covered.has(m.index)) continue;
+        tokens.push({ text: m[0], type: 'punctuation', range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
+        for (let i = m.index; i < m.index + m[0].length; i++) covered.add(i);
+      }
+      
+      // Attribute names (within tags)
+      const attrRegex = /\b([a-zA-Z][a-zA-Z0-9-]*)\s*=/g;
+      while ((m = attrRegex.exec(l))) {
+        if (covered.has(m.index)) continue;
+        const attrName = m[1];
+        tokens.push({
+          text: attrName,
+          type: "attribute",
+          range: { start: { line, column: m.index }, end: { line, column: m.index + attrName.length } },
+        });
+        for (let i = m.index; i < m.index + attrName.length; i++) covered.add(i);
+      }
+      
+      // Attribute values in quotes (both single and double)
+      const attrVal = /=\s*(["'])((?:\\.|(?!\1)[^\n])*?)\1/g;
       while ((m = attrVal.exec(l))) {
-        const start = (m.index || 0) + 1; // include = position offset
+        if (covered.has(m.index + 1)) continue;
+        const quote = m[1];
         const val = m[2];
-        const _colStart = start + (l.slice(start).match(/^\s*['"]/ ) ? (l.slice(start).match(/^\s*/)?.[0].length || 0) + 1 : 0);
-        // Fallback if math is messy: compute start by finding the opening quote
-        const quoteIdx = l.indexOf(m[1], m.index);
-        const valueStart = quoteIdx >= 0 ? quoteIdx + 1 : m.index + 1;
-        tokens.push({ text: val, type: 'attr-value', range: { start: { line, column: valueStart }, end: { line, column: valueStart + val.length } } });
+        const quoteIdx = l.indexOf(quote, m.index);
+        const valueStart = quoteIdx + 1;
+        
+        // Highlight the value
+        if (val) {
+          tokens.push({ 
+            text: val, 
+            type: 'attr-value', 
+            range: { start: { line, column: valueStart }, end: { line, column: valueStart + val.length } } 
+          });
+          for (let i = valueStart; i < valueStart + val.length; i++) covered.add(i);
+        }
+        
+        // Mark quotes as punctuation
+        tokens.push({ text: quote, type: 'punctuation', range: { start: { line, column: quoteIdx }, end: { line, column: quoteIdx + 1 } } });
+        tokens.push({ text: quote, type: 'punctuation', range: { start: { line, column: valueStart + val.length }, end: { line, column: valueStart + val.length + 1 } } });
+        for (let i = m.index; i < m.index + m[0].length; i++) covered.add(i);
       }
-      // Entities
+      
+      // HTML entities
       const ent = /&[a-zA-Z0-9#]+;/g;
       while ((m = ent.exec(l))) {
+        if (covered.has(m.index)) continue;
         tokens.push({ text: m[0], type: 'entity', range: { start: { line, column: m.index }, end: { line, column: m.index + m[0].length } } });
+        for (let i = m.index; i < m.index + m[0].length; i++) covered.add(i);
       }
     }
     return tokens;

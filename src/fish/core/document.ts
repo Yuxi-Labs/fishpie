@@ -111,6 +111,37 @@ export class TextDocument {
     return { start: cb, end: ca };
   }
 
+  /**
+   * Get text in a range (for history tracking)
+   */
+  getTextInRange(a: DocPos, b: DocPos): string {
+    const { start, end } = this._normalizeRange(a, b);
+    
+    if (start.line === end.line) {
+      // Same line
+      const line = this._lines[start.line] ?? "";
+      return line.slice(start.column, end.column);
+    }
+    
+    // Multi-line range
+    const result: string[] = [];
+    
+    // First line
+    const firstLine = this._lines[start.line] ?? "";
+    result.push(firstLine.slice(start.column));
+    
+    // Middle lines
+    for (let i = start.line + 1; i < end.line; i++) {
+      result.push(this._lines[i] ?? "");
+    }
+    
+    // Last line
+    const lastLine = this._lines[end.line] ?? "";
+    result.push(lastLine.slice(0, end.column));
+    
+    return result.join("\n");
+  }
+
   replaceRange(a: DocPos, b: DocPos, text: string): DocPos {
     const { start, end } = this._normalizeRange(a, b);
     const first = this._lines[start.line] ?? "";

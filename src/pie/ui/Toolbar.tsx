@@ -10,6 +10,33 @@ export function Toolbar({}: { projectId?: string }) {
         <MenuBar />
       </div>
       <div className="flex items-center gap-1.5 pr-0.5">
+        {/* Editor feature toggles */}
+        {ui.hasWorkspace && ui.groups.some(g => g.openFiles.length > 0) && (
+          <>
+            <button 
+              title={`Word Wrap ${ui.wordWrapEnabled ? 'Enabled' : 'Disabled'} (Alt+Z)`}
+              className={`h-8 w-8 rounded-md hover:bg-black/5 dark:hover:bg-white/10 ${ui.wordWrapEnabled ? 'bg-black/5 dark:bg-white/10' : ''}`}
+              onClick={() => ui.toggleWordWrap()}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M3 6h18" />
+                <path d="M3 12h15a3 3 0 1 1 0 6h-4" />
+                <path d="M14 15l-3 3 3 3" />
+                <path d="M3 18h7" />
+              </svg>
+            </button>
+            <button 
+              title={`Bracket Matching ${ui.bracketMatchingEnabled ? 'Enabled' : 'Disabled'}`}
+              className={`h-8 w-8 rounded-md hover:bg-black/5 dark:hover:bg-white/10 ${ui.bracketMatchingEnabled ? 'bg-black/5 dark:bg-white/10' : ''}`}
+              onClick={() => ui.toggleBracketMatching()}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+              </svg>
+            </button>
+            <div className="w-px h-6 bg-black/10 dark:bg-white/10 mx-1" />
+          </>
+        )}
         {/* Editor controls on the right */}
         {ui.hasWorkspace && ui.groups.some(g => g.openFiles.length > 0) && (
           <button title="Split Editor Right" className="h-8 w-8 rounded-md hover:bg-black/5 dark:hover:bg-white/10" onClick={() => ui.splitEditorRight()}>

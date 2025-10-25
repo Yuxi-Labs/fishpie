@@ -53,10 +53,14 @@ export function EditorTabs({ group, isActive }: { group: EditorGroup; isActive: 
               `}
               onClick={(e) => { e.stopPropagation(); ui.activateFile(f.name, group.id); }}
             >
-              {f.dirty && <span className="text-amber-500 text-base leading-none">•</span>}
               <span className={`${active ? 'text-black dark:text-white' : 'text-black/60 dark:text-white/60'}`}>
                 {f.name.split('/').pop()}
               </span>
+              {f.dirty && (
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="6" cy="6" r="4" fill="currentColor" className="text-blue-500" />
+                </svg>
+              )}
               <button 
                 className="ml-1 opacity-60 hover:opacity-100 p-0.5 hover:bg-black/10 dark:hover:bg-white/20 rounded" 
                 title="Close" 
